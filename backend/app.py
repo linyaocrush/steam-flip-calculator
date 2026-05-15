@@ -45,10 +45,24 @@ def init_db():
             sell_currency TEXT NOT NULL DEFAULT 'CNY',
             sell_currency_symbol TEXT NOT NULL DEFAULT '¥',
             exchange_rate REAL NOT NULL DEFAULT 1.0,
-            steam_fee_rate REAL NOT NULL DEFAULT 0.15
+            steam_fee_rate REAL NOT NULL DEFAULT 0.15,
+            theme_mode TEXT NOT NULL DEFAULT 'LIGHT',
+            my_currency TEXT NOT NULL DEFAULT 'CNY',
+            my_currency_symbol TEXT NOT NULL DEFAULT '¥',
+            exchange_rate_updated_at TEXT
         )
         """
     )
+    cur.execute("PRAGMA table_info(settings)")
+    columns = [col[1] for col in cur.fetchall()]
+    if "theme_mode" not in columns:
+        cur.execute("ALTER TABLE settings ADD COLUMN theme_mode TEXT NOT NULL DEFAULT 'LIGHT'")
+    if "my_currency" not in columns:
+        cur.execute("ALTER TABLE settings ADD COLUMN my_currency TEXT NOT NULL DEFAULT 'CNY'")
+    if "my_currency_symbol" not in columns:
+        cur.execute("ALTER TABLE settings ADD COLUMN my_currency_symbol TEXT NOT NULL DEFAULT '¥'")
+    if "exchange_rate_updated_at" not in columns:
+        cur.execute("ALTER TABLE settings ADD COLUMN exchange_rate_updated_at TEXT")
     cur.execute("SELECT COUNT(*) FROM settings")
     if cur.fetchone()[0] == 0:
         cur.execute("INSERT INTO settings (id) VALUES (1)")
@@ -99,6 +113,59 @@ def calculate():
     })
 
 
+def get_exchange_rate_cached(base, target, force_refresh=False):
+    """获取汇率，支持12小时缓存"""
+    if base == target:
+        return 1.0, None, "相同货币"
+    
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT exchange_rate, exchange_rate_updated_at FROM settings WHERE id = 1")
+    row = cur.fetchone()
+    
+    cached_rate = None
+    cached_time = None
+    if row:
+        cached_rate = row["exchange_rate"]
+        cached_time = row["exchange_rate_updated_at"]
+    
+    if not force_refresh and cached_rate is not None and cached_time is not None:
+        try:
+            from datetime import datetime
+            cached_datetime = datetime.strptime(cached_time, "%Y-%m-%d %H:%M:%S")
+            now = datetime.now()
+            diff_hours = (now - cached_datetime).total_seconds() / 3600
+            if diff_hours < 12:
+                conn.close()
+                return cached_rate, cached_time, "使用缓存"
+        except Exception:
+            pass
+    
+    try:
+        url = f"https://api.frankfurter.dev/v1/latest?base={base}&symbols={target}"
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        
+        if target not in data.get("rates", {}):
+            conn.close()
+            return cached_rate or 1.0, cached_time, "获取失败，使用缓存"
+        
+        rate = round(data["rates"][target], 4)
+        updated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        cur.execute(
+            "UPDATE settings SET exchange_rate = ?, exchange_rate_updated_at = ? WHERE id = 1",
+            (rate, updated_at)
+        )
+        conn.commit()
+        conn.close()
+        return rate, updated_at, "获取成功"
+    except Exception as e:
+        conn.close()
+        return cached_rate or 1.0, cached_time, f"获取失败: {str(e)}"
+
+
 @app.route("/api/settings", methods=["GET"])
 def get_settings():
     conn = get_db_connection()
@@ -114,7 +181,11 @@ def get_settings():
             "sell_currency": row["sell_currency"],
             "sell_currency_symbol": row["sell_currency_symbol"],
             "exchange_rate": row["exchange_rate"],
-            "steam_fee_rate": row["steam_fee_rate"]
+            "steam_fee_rate": row["steam_fee_rate"],
+            "theme_mode": row["theme_mode"],
+            "my_currency": row["my_currency"],
+            "my_currency_symbol": row["my_currency_symbol"],
+            "exchange_rate_updated_at": row["exchange_rate_updated_at"]
         })
     return jsonify({
         "buy_currency": "CNY",
@@ -122,7 +193,11 @@ def get_settings():
         "sell_currency": "CNY",
         "sell_currency_symbol": "¥",
         "exchange_rate": 1.0,
-        "steam_fee_rate": 0.15
+        "steam_fee_rate": 0.15,
+        "theme_mode": "LIGHT",
+        "my_currency": "CNY",
+        "my_currency_symbol": "¥",
+        "exchange_rate_updated_at": None
     })
 
 
@@ -135,15 +210,30 @@ def save_settings():
     sell_currency_symbol = data.get("sell_currency_symbol", "¥").strip()
     exchange_rate = float(data.get("exchange_rate", 1.0))
     steam_fee_rate = float(data.get("steam_fee_rate", 0.15))
+    theme_mode = data.get("theme_mode", "LIGHT").strip()
+    my_currency = data.get("my_currency", "CNY").strip()
+    my_currency_symbol = data.get("my_currency_symbol", "¥").strip()
 
     if not buy_currency:
         return jsonify({"error": "买入货币不能为空"}), 400
     if not sell_currency:
         return jsonify({"error": "卖出货币不能为空"}), 400
-    if exchange_rate <= 0:
-        return jsonify({"error": "汇率必须大于 0"}), 400
     if steam_fee_rate < 0 or steam_fee_rate >= 1:
         return jsonify({"error": "手续费率必须在 0 到 1 之间"}), 400
+    if theme_mode not in ["LIGHT", "DARK"]:
+        return jsonify({"error": "主题模式必须是 LIGHT 或 DARK"}), 400
+    if not my_currency:
+        return jsonify({"error": "我的货币不能为空"}), 400
+
+    auto_fetch_rate = False
+    rate_source = "用户输入"
+    
+    if buy_currency != sell_currency:
+        exchange_rate, updated_at, rate_source = get_exchange_rate_cached(buy_currency, sell_currency)
+        auto_fetch_rate = True
+    else:
+        exchange_rate = 1.0
+        updated_at = None
 
     conn = get_db_connection()
     cur = conn.cursor()
@@ -155,16 +245,27 @@ def save_settings():
             sell_currency = ?,
             sell_currency_symbol = ?,
             exchange_rate = ?,
-            steam_fee_rate = ?
+            steam_fee_rate = ?,
+            theme_mode = ?,
+            my_currency = ?,
+            my_currency_symbol = ?,
+            exchange_rate_updated_at = ?
         WHERE id = 1
         """,
         (buy_currency, buy_currency_symbol, sell_currency, 
-         sell_currency_symbol, exchange_rate, steam_fee_rate)
+         sell_currency_symbol, exchange_rate, steam_fee_rate, 
+         theme_mode, my_currency, my_currency_symbol, updated_at)
     )
     conn.commit()
     conn.close()
 
-    return jsonify({"message": "设置已保存"}), 200
+    return jsonify({
+        "message": "设置已保存",
+        "auto_fetch_rate": auto_fetch_rate,
+        "rate_source": rate_source,
+        "exchange_rate": exchange_rate,
+        "exchange_rate_updated_at": updated_at
+    }), 200
 
 
 @app.route("/api/records", methods=["GET"])

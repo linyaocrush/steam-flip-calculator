@@ -136,6 +136,10 @@ def main(page: ft.Page):
         "sell_currency_symbol": "¥",
         "exchange_rate": 1.0,
         "steam_fee_rate": 0.15,
+        "theme_mode": "LIGHT",
+        "my_currency": "CNY",
+        "my_currency_symbol": "¥",
+        "exchange_rate_updated_at": None,
     }
 
     # 加载状态变量
@@ -167,6 +171,8 @@ def main(page: ft.Page):
         data, status = api_get("/settings")
         if status == 200:
             settings.update(data)
+            theme_mode = settings.get("theme_mode", "LIGHT")
+            page.theme_mode = ft.ThemeMode.DARK if theme_mode == "DARK" else ft.ThemeMode.LIGHT
 
     def init_app():
         """初始化应用主界面"""
@@ -208,6 +214,22 @@ def main(page: ft.Page):
         out_discount = ft.Text(value="-")
         out_need_sell = ft.Text(value="-")
 
+        def format_price(amount, currency_symbol, currency_code):
+            """格式化价格，根据我的货币显示转换后的价格"""
+            my_currency = settings.get("my_currency", "CNY")
+            my_symbol = settings.get("my_currency_symbol", "¥")
+            
+            if currency_code == my_currency:
+                return f"{currency_symbol} {money(amount)}"
+            
+            exchange_rate = settings.get("exchange_rate", 1.0)
+            if settings["buy_currency"] == my_currency:
+                converted = amount / exchange_rate
+            else:
+                converted = amount * exchange_rate
+            
+            return f"{currency_symbol} {money(amount)} ({my_symbol} {money(converted)})"
+
         def recalc(_=None):
             unit_cost = safe_float(tf_cost.value)
             unit_sell = safe_float(tf_steam_sell.value)
@@ -224,12 +246,12 @@ def main(page: ft.Page):
                 settings["steam_fee_rate"],
             )
 
-            out_unit_net.value = f"{settings['sell_currency_symbol']} {money(data['unit_net'])}"
-            out_total_cost.value = f"{settings['sell_currency_symbol']} {money(data['total_cost'])}"
-            out_total_net.value = f"{settings['sell_currency_symbol']} {money(data['total_net'])}"
+            out_unit_net.value = format_price(data['unit_net'], settings['sell_currency_symbol'], settings['sell_currency'])
+            out_total_cost.value = format_price(data['total_cost'], settings['sell_currency_symbol'], settings['sell_currency'])
+            out_total_net.value = format_price(data['total_net'], settings['sell_currency_symbol'], settings['sell_currency'])
             out_ratio.value = f"{pct(data['ratio'])}（成本/到手余额）"
             out_discount.value = f"{pct(data['discount'])}"
-            out_need_sell.value = f"{settings['sell_currency_symbol']} {money(data['need_sell'])}（单价）"
+            out_need_sell.value = f"{format_price(data['need_sell'], settings['sell_currency_symbol'], settings['sell_currency'])}（单价）"
             page.update()
 
         for t in (tf_cost, tf_steam_sell, tf_qty):
@@ -492,6 +514,34 @@ def main(page: ft.Page):
         )
 
         # ---- Settings View
+        settings_saved = True
+        save_status_icon = ft.Icon(ft.Icons.CHECK_CIRCLE, size=18, color=ft.Colors.GREEN)
+        save_status_label = ft.Text("已保存设置", size=14, weight=ft.FontWeight.W_500, color=ft.Colors.GREEN)
+        save_status_text = ft.Row(
+            alignment=ft.MainAxisAlignment.CENTER,
+            spacing=4,
+            controls=[save_status_icon, save_status_label],
+        )
+
+        def update_save_status(saved):
+            nonlocal settings_saved
+            settings_saved = saved
+            if saved:
+                save_status_label.value = "已保存设置"
+                save_status_label.color = ft.Colors.GREEN
+                save_status_icon.name = ft.Icons.CHECK_CIRCLE
+                save_status_icon.color = ft.Colors.GREEN
+            else:
+                save_status_label.value = "未保存"
+                save_status_label.color = ft.Colors.RED
+                save_status_icon.name = ft.Icons.CIRCLE
+                save_status_icon.color = ft.Colors.RED
+            page.update()
+
+        def mark_unsaved(_=None):
+            if settings_saved:
+                update_save_status(False)
+
         tf_buy_currency = ft.Dropdown(
             label="买入货币",
             options=[ft.dropdown.Option(code, f"{code} - {CURRENCY_NAMES[code]}") for code in CURRENCY_CODES],
@@ -511,6 +561,7 @@ def main(page: ft.Page):
             value=str(settings["exchange_rate"]),
             keyboard_type=ft.KeyboardType.NUMBER,
             expand=True,
+            on_change=mark_unsaved,
         )
 
         tf_fee_rate = ft.TextField(
@@ -518,6 +569,24 @@ def main(page: ft.Page):
             value=f"{settings['steam_fee_rate'] * 100:.1f}",
             keyboard_type=ft.KeyboardType.NUMBER,
             width=150,
+            on_change=mark_unsaved,
+        )
+
+        dd_theme_mode = ft.Dropdown(
+            label="默认主题模式",
+            options=[
+                ft.dropdown.Option("LIGHT", "浅色模式"),
+                ft.dropdown.Option("DARK", "深色模式"),
+            ],
+            value=settings["theme_mode"],
+            width=150,
+        )
+
+        dd_my_currency = ft.Dropdown(
+            label="我的货币",
+            options=[ft.dropdown.Option(code, f"{code} - {CURRENCY_NAMES[code]}") for code in CURRENCY_CODES],
+            value=settings["my_currency"],
+            expand=True,
         )
 
         def fetch_exchange_rate(_):
@@ -539,6 +608,7 @@ def main(page: ft.Page):
             if status == 200 and "rate" in data:
                 tf_exchange_rate.value = str(data["rate"])
                 snack.content = ft.Text(f"汇率获取成功：{buy_code} -> {sell_code} = {data['rate']}")
+                mark_unsaved()
             else:
                 snack.content = ft.Text(data.get("error", "汇率获取失败"))
             snack.open = True
@@ -558,26 +628,28 @@ def main(page: ft.Page):
             tf_exchange_rate.label = f"汇率（{buy_code} -> {sell_code}）"
             page.update()
 
-        tf_buy_currency.on_change = update_exchange_label
-        tf_sell_currency.on_change = update_exchange_label
+        tf_buy_currency.on_change = lambda e: (update_exchange_label(e), mark_unsaved())
+        tf_sell_currency.on_change = lambda e: (update_exchange_label(e), mark_unsaved())
+        dd_theme_mode.on_change = mark_unsaved
+        dd_my_currency.on_change = mark_unsaved
 
         def save_settings_click(_):
             buy_currency = tf_buy_currency.value or "CNY"
             sell_currency = tf_sell_currency.value or "CNY"
             exchange_rate = safe_float(tf_exchange_rate.value)
             fee_rate = safe_float(tf_fee_rate.value) / 100.0
-
-            if exchange_rate <= 0:
-                snack.content = ft.Text("汇率必须大于 0")
-                snack.open = True
-                page.update()
-                return
+            theme_mode = dd_theme_mode.value or "LIGHT"
+            my_currency = dd_my_currency.value or "CNY"
 
             if fee_rate <= 0 or fee_rate >= 1:
                 snack.content = ft.Text("手续费率必须在 0-100% 之间")
                 snack.open = True
                 page.update()
                 return
+
+            snack.content = ft.Text("正在保存设置...")
+            snack.open = True
+            page.update()
 
             data, status = api_post("/settings", {
                 "buy_currency": buy_currency,
@@ -586,6 +658,9 @@ def main(page: ft.Page):
                 "sell_currency_symbol": CURRENCY_SYMBOLS[sell_currency],
                 "exchange_rate": exchange_rate,
                 "steam_fee_rate": fee_rate,
+                "theme_mode": theme_mode,
+                "my_currency": my_currency,
+                "my_currency_symbol": CURRENCY_SYMBOLS[my_currency],
             })
 
             if status == 200:
@@ -594,15 +669,24 @@ def main(page: ft.Page):
                     "buy_currency_symbol": CURRENCY_SYMBOLS[buy_currency],
                     "sell_currency": sell_currency,
                     "sell_currency_symbol": CURRENCY_SYMBOLS[sell_currency],
-                    "exchange_rate": exchange_rate,
+                    "exchange_rate": data.get("exchange_rate", exchange_rate),
                     "steam_fee_rate": fee_rate,
+                    "theme_mode": theme_mode,
+                    "my_currency": my_currency,
+                    "my_currency_symbol": CURRENCY_SYMBOLS[my_currency],
+                    "exchange_rate_updated_at": data.get("exchange_rate_updated_at"),
                 })
+                tf_exchange_rate.value = str(settings["exchange_rate"])
+                page.theme_mode = ft.ThemeMode.DARK if theme_mode == "DARK" else ft.ThemeMode.LIGHT
                 tf_exchange_rate.label = f"汇率（{buy_currency} -> {sell_currency}）"
+                rate_source = data.get("rate_source", "用户输入")
+                snack.content = ft.Text(f"设置已保存（汇率: {rate_source}）")
                 snack.content = ft.Text("设置已保存")
                 tf_cost.prefix = ft.Text(settings["buy_currency_symbol"])
                 tf_steam_sell.prefix = ft.Text(settings["sell_currency_symbol"])
                 reverse_box.content.controls[1].value = f"Steam 市场固定 {fee_rate * 100:.1f}% 手续费"
                 recalc()
+                update_save_status(True)
             else:
                 snack.content = ft.Text(data.get("error", "保存失败"))
             snack.open = True
@@ -613,7 +697,10 @@ def main(page: ft.Page):
             tf_sell_currency.value = "CNY"
             tf_exchange_rate.value = "1.0"
             tf_fee_rate.value = "15.0"
+            dd_theme_mode.value = "LIGHT"
+            dd_my_currency.value = "CNY"
             update_exchange_label()
+            mark_unsaved()
             page.update()
 
         settings_view = ft.Card(
@@ -623,7 +710,13 @@ def main(page: ft.Page):
                 content=ft.Column(
                     spacing=14,
                     controls=[
-                        ft.Text("货币与汇率设置", size=18, weight=ft.FontWeight.W_700),
+                        ft.Row(
+                            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                            controls=[
+                                ft.Text("应用设置", size=18, weight=ft.FontWeight.W_700),
+                                save_status_text,
+                            ],
+                        ),
                         ft.Container(
                             padding=16,
                             border_radius=14,
@@ -633,6 +726,8 @@ def main(page: ft.Page):
                                 controls=[
                                     ft.Row([tf_buy_currency, tf_sell_currency], spacing=12),
                                     ft.Row([tf_exchange_rate, btn_fetch_rate, tf_fee_rate], spacing=12),
+                                    ft.Row([dd_theme_mode], spacing=12),
+                                    ft.Row([dd_my_currency], spacing=12),
                                 ],
                             ),
                         ),
@@ -642,8 +737,10 @@ def main(page: ft.Page):
                             controls=[
                                 ft.Text("- 买入货币：在第三方平台购买物品使用的货币", size=12, opacity=0.8),
                                 ft.Text("- 卖出货币：Steam 市场所在区域的货币", size=12, opacity=0.8),
-                                ft.Text("- 汇率：买入货币兑换为卖出货币的比率", size=12, opacity=0.8),
+                                ft.Text("- 汇率：买入货币兑换为卖出货币的比率（自动获取，12小时缓存）", size=12, opacity=0.8),
                                 ft.Text("- 手续费：Steam 市场收取的交易手续费（默认 15%）", size=12, opacity=0.8),
+                                ft.Text("- 默认主题模式：应用启动后默认的主题模式", size=12, opacity=0.8),
+                                ft.Text("- 我的货币：显示价格时自动转换为此货币", size=12, opacity=0.8),
                             ],
                         ),
                         ft.Row(
