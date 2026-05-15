@@ -1,0 +1,336 @@
+LANGUAGE_CODES = ["zh", "en", "ja"]
+
+LANGUAGE_LABELS = {
+    "zh": "🇨🇳 中文",
+    "en": "🇺🇸 English",
+    "ja": "🇯🇵 日本語",
+}
+
+TRANSLATIONS = {
+    "zh": {
+        "app_title": "Steam 倒余额工具箱",
+        "calculator": "计算器",
+        "history": "历史",
+        "stats": "统计",
+        "settings": "设置",
+        "toggle_theme": "切换明/暗",
+        
+        "item_name": "物品名称",
+        "note": "备注（可选）",
+        "cost": "第三方成本（单价）",
+        "steam_sell": "Steam 售出金额（单价）",
+        "quantity": "数量",
+        
+        "reverse_title": "反推挂刀价（规则）",
+        "steam_fee": "Steam 市场固定 {fee:.1f}% 手续费",
+        "break_even_price": "保本售卖价(单价):",
+        "add_to_history": "记录到历史",
+        
+        "result_title": "计算结果（按单价与数量）",
+        "unit_net": "Steam 实际到账(单价):",
+        "total_cost": "总花费:",
+        "total_net": "总到手余额:",
+        "flip_ratio": "倒余额比例:",
+        "discount": "折扣(越大越好):",
+        "ratio_desc": "成本/到手余额",
+        "unit": "单价",
+        
+        "history_title": "倒余额历史",
+        "refresh": "刷新",
+        "clear_all": "清空全部",
+        "confirm_clear": "清空全部历史？",
+        "confirm_clear_msg": "此操作不可撤销。",
+        "cancel": "取消",
+        "confirm": "确认",
+        
+        "time": "时间",
+        "item": "物品",
+        "cost_unit": "成本(单)",
+        "sell_unit": "售出(单)",
+        "net_unit": "到账(单)",
+        "cost_total": "花费(总)",
+        "net_total": "到手(总)",
+        "discount_pct": "折扣%",
+        "action": "操作",
+        "delete": "删除",
+        
+        "stats_title": "统计汇总（基于历史记录）",
+        "total_qty": "总数量:",
+        "total_cost": "总花费:",
+        "total_sell": "Steam 售出总额(未扣费):",
+        "total_net": "总到手余额(已扣手续费):",
+        "total_ratio": "整体倒余额比例(花费/到手):",
+        "total_discount": "整体折扣:",
+        "stats_hint": "提示：整体折扣=1-（总花费/总到手余额）。例如花 70 得 85，折扣≈17.65%。",
+        
+        "settings_title": "应用设置",
+        "buy_currency": "买入货币",
+        "sell_currency": "卖出货币（Steam 市场）",
+        "exchange_rate": "汇率（{from_curr} -> {to_curr}）",
+        "fee_rate": "Steam 手续费率 (%)",
+        "theme_mode": "默认主题模式",
+        "my_currency": "我的货币",
+        "language": "语言",
+        "theme_light": "浅色模式",
+        "theme_dark": "深色模式",
+        
+        "settings_desc": "说明：",
+        "buy_currency_desc": "- 买入货币：在第三方平台购买物品使用的货币",
+        "sell_currency_desc": "- 卖出货币：Steam 市场所在区域的货币",
+        "exchange_rate_desc": "- 汇率：买入货币兑换为卖出货币的比率（自动获取，12小时缓存）",
+        "fee_rate_desc": "- 手续费：Steam 市场收取的交易手续费（默认 15%）",
+        "theme_mode_desc": "- 默认主题模式：应用启动后默认的主题模式",
+        "my_currency_desc": "- 我的货币：显示价格时自动转换为此货币",
+        "language_desc": "- 语言：应用界面显示语言",
+        
+        "reset": "重置",
+        "save_settings": "保存设置",
+        "saved": "已保存设置",
+        "unsaved": "未保存",
+        
+        "fetch_rate": "获取汇率",
+        
+        "loading": "正在连接后端服务...",
+        "loading_success": "连接成功！正在初始化...",
+        "loading_failed": "连接失败",
+        "connection_error": "无法连接到后端服务，请确保后端已启动\n服务地址: http://localhost:5000",
+        
+        "error_empty_item": "请填写物品名称",
+        "error_invalid_price": "单价必须大于 0",
+        "error_same_currency": "买入货币和卖出货币相同，无需汇率",
+        "error_invalid_fee": "手续费率必须在 0-100% 之间",
+        
+        "save_success": "已记录到历史",
+        "save_failed": "记录失败",
+        "clear_success": "已清空全部历史",
+        "clear_failed": "清空失败",
+        "delete_success": "已删除记录",
+        "delete_failed": "删除失败",
+        
+        "fetching_rate": "正在获取汇率...",
+        "rate_success": "汇率获取成功：{base} -> {target} = {rate}",
+        "rate_failed": "汇率获取失败",
+    },
+    
+    "en": {
+        "app_title": "Steam Flip Calculator",
+        "calculator": "Calculator",
+        "history": "History",
+        "stats": "Stats",
+        "settings": "Settings",
+        "toggle_theme": "Toggle Theme",
+        
+        "item_name": "Item Name",
+        "note": "Note (Optional)",
+        "cost": "Third-party Cost (Unit)",
+        "steam_sell": "Steam Sell Price (Unit)",
+        "quantity": "Quantity",
+        
+        "reverse_title": "Reverse Calculation (Rules)",
+        "steam_fee": "Steam Market fixed {fee:.1f}% fee",
+        "break_even_price": "Break-even Price (Unit):",
+        "add_to_history": "Add to History",
+        
+        "result_title": "Calculation Results (Per Unit & Quantity)",
+        "unit_net": "Steam Net Receipt (Unit):",
+        "total_cost": "Total Cost:",
+        "total_net": "Total Net Balance:",
+        "flip_ratio": "Flip Ratio:",
+        "discount": "Discount (Higher Better):",
+        "ratio_desc": "Cost/Net",
+        "unit": "Unit",
+        
+        "history_title": "Flip History",
+        "refresh": "Refresh",
+        "clear_all": "Clear All",
+        "confirm_clear": "Clear All History?",
+        "confirm_clear_msg": "This action cannot be undone.",
+        "cancel": "Cancel",
+        "confirm": "Confirm",
+        
+        "time": "Time",
+        "item": "Item",
+        "cost_unit": "Cost(Unit)",
+        "sell_unit": "Sell(Unit)",
+        "net_unit": "Net(Unit)",
+        "cost_total": "Cost(Total)",
+        "net_total": "Net(Total)",
+        "discount_pct": "Discount%",
+        "action": "Action",
+        "delete": "Delete",
+        
+        "stats_title": "Statistics Summary (Based on History)",
+        "total_qty": "Total Quantity:",
+        "total_cost": "Total Cost:",
+        "total_sell": "Total Steam Sales (Before Fee):",
+        "total_net": "Total Net Balance (After Fee):",
+        "total_ratio": "Overall Flip Ratio (Cost/Net):",
+        "total_discount": "Overall Discount:",
+        "stats_hint": "Tip: Overall Discount = 1 - (Total Cost/Total Net Balance). For example, spend 70 get 85, discount ≈ 17.65%.",
+        
+        "settings_title": "Application Settings",
+        "buy_currency": "Buy Currency",
+        "sell_currency": "Sell Currency (Steam Market)",
+        "exchange_rate": "Exchange Rate ({from_curr} -> {to_curr})",
+        "fee_rate": "Steam Fee Rate (%)",
+        "theme_mode": "Default Theme Mode",
+        "my_currency": "My Currency",
+        "language": "Language",
+        "theme_light": "Light Mode",
+        "theme_dark": "Dark Mode",
+        
+        "settings_desc": "Description:",
+        "buy_currency_desc": "- Buy Currency: Currency used to purchase items on third-party platforms",
+        "sell_currency_desc": "- Sell Currency: Currency of the Steam market region",
+        "exchange_rate_desc": "- Exchange Rate: Conversion rate from buy currency to sell currency (Auto fetched, 12-hour cache)",
+        "fee_rate_desc": "- Fee Rate: Transaction fee charged by Steam Market (default 15%)",
+        "theme_mode_desc": "- Default Theme Mode: Theme mode when application starts",
+        "my_currency_desc": "- My Currency: Auto convert prices to this currency for display",
+        "language_desc": "- Language: Display language for the application interface",
+        
+        "reset": "Reset",
+        "save_settings": "Save Settings",
+        "saved": "Settings Saved",
+        "unsaved": "Unsaved",
+        
+        "fetch_rate": "Fetch Rate",
+        
+        "loading": "Connecting to backend...",
+        "loading_success": "Connected! Initializing...",
+        "loading_failed": "Connection Failed",
+        "connection_error": "Unable to connect to backend service. Please ensure backend is running.\nService: http://localhost:5000",
+        
+        "error_empty_item": "Please enter item name",
+        "error_invalid_price": "Price must be greater than 0",
+        "error_same_currency": "Buy and sell currencies are the same, no exchange rate needed",
+        "error_invalid_fee": "Fee rate must be between 0-100%",
+        
+        "save_success": "Added to history",
+        "save_failed": "Save failed",
+        "clear_success": "History cleared",
+        "clear_failed": "Clear failed",
+        "delete_success": "Record deleted",
+        "delete_failed": "Delete failed",
+        
+        "fetching_rate": "Fetching exchange rate...",
+        "rate_success": "Exchange rate fetched: {base} -> {target} = {rate}",
+        "rate_failed": "Failed to fetch exchange rate",
+    },
+    
+    "ja": {
+        "app_title": "Steam フリップ計算機",
+        "calculator": "計算機",
+        "history": "履歴",
+        "stats": "統計",
+        "settings": "設定",
+        "toggle_theme": "テーマ切り替え",
+        
+        "item_name": "アイテム名",
+        "note": "備考（任意）",
+        "cost": "第三者コスト（単価）",
+        "steam_sell": "Steam販売額（単価）",
+        "quantity": "数量",
+        
+        "reverse_title": "逆算（ルール）",
+        "steam_fee": "Steam市場固定 {fee:.1f}% 手数料",
+        "break_even_price": "損益分岐価格(単価):",
+        "add_to_history": "履歴に記録",
+        
+        "result_title": "計算結果（単価と数量別）",
+        "unit_net": "Steam実質受取額(単価):",
+        "total_cost": "総コスト:",
+        "total_net": "総受取残高:",
+        "flip_ratio": "フリップ比率:",
+        "discount": "割引率(高い方が良い):",
+        "ratio_desc": "コスト/受取額",
+        "unit": "単価",
+        
+        "history_title": "フリップ履歴",
+        "refresh": "更新",
+        "clear_all": "全て消去",
+        "confirm_clear": "履歴を全て消去しますか？",
+        "confirm_clear_msg": "この操作は取り消せません。",
+        "cancel": "キャンセル",
+        "confirm": "確認",
+        
+        "time": "時間",
+        "item": "アイテム",
+        "cost_unit": "コスト(単)",
+        "sell_unit": "販売(単)",
+        "net_unit": "受取(単)",
+        "cost_total": "コスト(合計)",
+        "net_total": "受取(合計)",
+        "discount_pct": "割引%",
+        "action": "操作",
+        "delete": "削除",
+        
+        "stats_title": "統計概要（履歴に基づく）",
+        "total_qty": "総数量:",
+        "total_cost": "総コスト:",
+        "total_sell": "Steam販売総額(手数料前):",
+        "total_net": "総受取残高(手数料後):",
+        "total_ratio": "全体フリップ比率(コスト/受取):",
+        "total_discount": "全体割引率:",
+        "stats_hint": "ヒント：全体割引率=1-（総コスト/総受取残高）。例えば70を費やして85を得る場合、割引率≈17.65%。",
+        
+        "settings_title": "アプリケーション設定",
+        "buy_currency": "購入通貨",
+        "sell_currency": "販売通貨（Steam市場）",
+        "exchange_rate": "為替レート（{from_curr} -> {to_curr}）",
+        "fee_rate": "Steam手数料率 (%)",
+        "theme_mode": "デフォルトテーマモード",
+        "my_currency": "自分の通貨",
+        "language": "言語",
+        "theme_light": "ライトモード",
+        "theme_dark": "ダークモード",
+        
+        "settings_desc": "説明：",
+        "buy_currency_desc": "- 購入通貨：第三者プラットフォームでアイテム購入に使用する通貨",
+        "sell_currency_desc": "- 販売通貨：Steam市場の地域の通貨",
+        "exchange_rate_desc": "- 為替レート：購入通貨から販売通貨への換算レート（自動取得、12時間キャッシュ）",
+        "fee_rate_desc": "- 手数料率：Steam市場が請求する取引手数料（デフォルト15%）",
+        "theme_mode_desc": "- デフォルトテーマモード：アプリケーション起動時のテーマモード",
+        "my_currency_desc": "- 自分の通貨：価格表示時に自動的にこの通貨に変換",
+        "language_desc": "- 言語：アプリケーションインターフェースの表示言語",
+        
+        "reset": "リセット",
+        "save_settings": "設定を保存",
+        "saved": "設定保存済み",
+        "unsaved": "未保存",
+        
+        "fetch_rate": "レート取得",
+        
+        "loading": "バックエンドに接続中...",
+        "loading_success": "接続成功！初期化中...",
+        "loading_failed": "接続失敗",
+        "connection_error": "バックエンドサービスに接続できません。バックエンドが実行中であることを確認してください。\nサービス: http://localhost:5000",
+        
+        "error_empty_item": "アイテム名を入力してください",
+        "error_invalid_price": "価格は0より大きくなければなりません",
+        "error_same_currency": "購入通貨と販売通貨が同じです。為替レートは必要ありません",
+        "error_invalid_fee": "手数料率は0-100%の範囲でなければなりません",
+        
+        "save_success": "履歴に追加しました",
+        "save_failed": "保存に失敗しました",
+        "clear_success": "履歴を消去しました",
+        "clear_failed": "消去に失敗しました",
+        "delete_success": "記録を削除しました",
+        "delete_failed": "削除に失敗しました",
+        
+        "fetching_rate": "為替レート取得中...",
+        "rate_success": "為替レート取得成功：{base} -> {target} = {rate}",
+        "rate_failed": "為替レート取得失敗",
+    },
+}
+
+
+def get_text(key: str, lang: str = "zh", **kwargs) -> str:
+    lang = lang if lang in LANGUAGE_CODES else "zh"
+    translations = TRANSLATIONS.get(lang, TRANSLATIONS["zh"])
+    text = translations.get(key, key)
+    if kwargs:
+        try:
+            text = text.format(**kwargs)
+        except KeyError:
+            pass
+    return text

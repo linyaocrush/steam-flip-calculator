@@ -1,12 +1,13 @@
 import flet as ft
 from config import CURRENCY_CODES, CURRENCY_NAMES, CURRENCY_SYMBOLS
+from i18n import LANGUAGE_CODES, LANGUAGE_LABELS
 from utils import safe_float
 
 
-def create_settings_view(settings, snack):
+def create_settings_view(settings, snack, t):
     settings_saved = True
     save_status_icon = ft.Icon(ft.Icons.CHECK_CIRCLE, size=18, color=ft.Colors.GREEN)
-    save_status_label = ft.Text("已保存设置", size=14, weight=ft.FontWeight.W_500, color=ft.Colors.GREEN)
+    save_status_label = ft.Text(t("saved"), size=14, weight=ft.FontWeight.W_500, color=ft.Colors.GREEN)
     save_status_text = ft.Row(
         alignment=ft.MainAxisAlignment.CENTER,
         spacing=4,
@@ -17,12 +18,12 @@ def create_settings_view(settings, snack):
         nonlocal settings_saved
         settings_saved = saved
         if saved:
-            save_status_label.value = "已保存设置"
+            save_status_label.value = t("saved")
             save_status_label.color = ft.Colors.GREEN
             save_status_icon.name = ft.Icons.CHECK_CIRCLE
             save_status_icon.color = ft.Colors.GREEN
         else:
-            save_status_label.value = "未保存"
+            save_status_label.value = t("unsaved")
             save_status_label.color = ft.Colors.RED
             save_status_icon.name = ft.Icons.CIRCLE
             save_status_icon.color = ft.Colors.RED
@@ -34,21 +35,21 @@ def create_settings_view(settings, snack):
         return True
 
     tf_buy_currency = ft.Dropdown(
-        label="买入货币",
+        label=t("buy_currency"),
         options=[ft.dropdown.Option(code, f"{code} - {CURRENCY_NAMES[code]}") for code in CURRENCY_CODES],
         value=settings["buy_currency"],
         expand=True,
     )
 
     tf_sell_currency = ft.Dropdown(
-        label="卖出货币（Steam 市场）",
+        label=t("sell_currency"),
         options=[ft.dropdown.Option(code, f"{code} - {CURRENCY_NAMES[code]}") for code in CURRENCY_CODES],
         value=settings["sell_currency"],
         expand=True,
     )
 
     tf_exchange_rate = ft.TextField(
-        label=f"汇率（{settings['buy_currency']} -> {settings['sell_currency']}）",
+        label=t("exchange_rate", from_curr=settings["buy_currency"], to_curr=settings["sell_currency"]),
         value=str(settings["exchange_rate"]),
         keyboard_type=ft.KeyboardType.NUMBER,
         expand=True,
@@ -56,7 +57,7 @@ def create_settings_view(settings, snack):
     )
 
     tf_fee_rate = ft.TextField(
-        label="Steam 手续费率 (%)",
+        label=t("fee_rate"),
         value=f"{settings['steam_fee_rate'] * 100:.1f}",
         keyboard_type=ft.KeyboardType.NUMBER,
         width=150,
@@ -64,24 +65,31 @@ def create_settings_view(settings, snack):
     )
 
     dd_theme_mode = ft.Dropdown(
-        label="默认主题模式",
+        label=t("theme_mode"),
         options=[
-            ft.dropdown.Option("LIGHT", "浅色模式"),
-            ft.dropdown.Option("DARK", "深色模式"),
+            ft.dropdown.Option("LIGHT", t("theme_light")),
+            ft.dropdown.Option("DARK", t("theme_dark")),
         ],
         value=settings["theme_mode"],
         width=150,
     )
 
     dd_my_currency = ft.Dropdown(
-        label="我的货币",
+        label=t("my_currency"),
         options=[ft.dropdown.Option(code, f"{code} - {CURRENCY_NAMES[code]}") for code in CURRENCY_CODES],
         value=settings["my_currency"],
         expand=True,
     )
 
+    dd_language = ft.Dropdown(
+        label=t("language"),
+        options=[ft.dropdown.Option(code, LANGUAGE_LABELS[code]) for code in LANGUAGE_CODES],
+        value=settings.get("language", "zh"),
+        expand=True,
+    )
+
     btn_fetch_rate = ft.ElevatedButton(
-        "获取汇率",
+        t("fetch_rate"),
         icon=ft.Icons.DOWNLOAD_OUTLINED,
         width=120,
     )
@@ -89,13 +97,14 @@ def create_settings_view(settings, snack):
     def update_exchange_label(_=None):
         buy_code = tf_buy_currency.value if tf_buy_currency.value else "CNY"
         sell_code = tf_sell_currency.value if tf_sell_currency.value else "CNY"
-        tf_exchange_rate.label = f"汇率（{buy_code} -> {sell_code}）"
+        tf_exchange_rate.label = t("exchange_rate", from_curr=buy_code, to_curr=sell_code)
         return True
 
     tf_buy_currency.on_change = lambda e: (update_exchange_label(e), mark_unsaved())
     tf_sell_currency.on_change = lambda e: (update_exchange_label(e), mark_unsaved())
     dd_theme_mode.on_change = mark_unsaved
     dd_my_currency.on_change = mark_unsaved
+    dd_language.on_change = mark_unsaved
 
     def reset_settings(_):
         tf_buy_currency.value = "CNY"
@@ -104,6 +113,7 @@ def create_settings_view(settings, snack):
         tf_fee_rate.value = "15.0"
         dd_theme_mode.value = "LIGHT"
         dd_my_currency.value = "CNY"
+        dd_language.value = "zh"
         update_exchange_label()
         mark_unsaved()
         return True
@@ -118,7 +128,7 @@ def create_settings_view(settings, snack):
                     ft.Row(
                         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                         controls=[
-                            ft.Text("应用设置", size=18, weight=ft.FontWeight.W_700),
+                            ft.Text(t("settings_title"), size=18, weight=ft.FontWeight.W_700),
                             save_status_text,
                         ],
                     ),
@@ -131,29 +141,30 @@ def create_settings_view(settings, snack):
                             controls=[
                                 ft.Row([tf_buy_currency, tf_sell_currency], spacing=12),
                                 ft.Row([tf_exchange_rate, btn_fetch_rate, tf_fee_rate], spacing=12),
-                                ft.Row([dd_theme_mode], spacing=12),
+                                ft.Row([dd_theme_mode, dd_language], spacing=12),
                                 ft.Row([dd_my_currency], spacing=12),
                             ],
                         ),
                     ),
-                    ft.Text("说明：", size=14, weight=ft.FontWeight.W_600),
+                    ft.Text(t("settings_desc"), size=14, weight=ft.FontWeight.W_600),
                     ft.Column(
                         spacing=4,
                         controls=[
-                            ft.Text("- 买入货币：在第三方平台购买物品使用的货币", size=12, opacity=0.8),
-                            ft.Text("- 卖出货币：Steam 市场所在区域的货币", size=12, opacity=0.8),
-                            ft.Text("- 汇率：买入货币兑换为卖出货币的比率（自动获取，12小时缓存）", size=12, opacity=0.8),
-                            ft.Text("- 手续费：Steam 市场收取的交易手续费（默认 15%）", size=12, opacity=0.8),
-                            ft.Text("- 默认主题模式：应用启动后默认的主题模式", size=12, opacity=0.8),
-                            ft.Text("- 我的货币：显示价格时自动转换为此货币", size=12, opacity=0.8),
+                            ft.Text(t("buy_currency_desc"), size=12, opacity=0.8),
+                            ft.Text(t("sell_currency_desc"), size=12, opacity=0.8),
+                            ft.Text(t("exchange_rate_desc"), size=12, opacity=0.8),
+                            ft.Text(t("fee_rate_desc"), size=12, opacity=0.8),
+                            ft.Text(t("theme_mode_desc"), size=12, opacity=0.8),
+                            ft.Text(t("my_currency_desc"), size=12, opacity=0.8),
+                            ft.Text(t("language_desc"), size=12, opacity=0.8),
                         ],
                     ),
                     ft.Row(
                         spacing=10,
                         alignment=ft.MainAxisAlignment.END,
                         controls=[
-                            ft.OutlinedButton("重置", icon=ft.Icons.UNDO, on_click=reset_settings),
-                            ft.FilledButton("保存设置", icon=ft.Icons.SAVE),
+                            ft.OutlinedButton(t("reset"), icon=ft.Icons.UNDO, on_click=reset_settings),
+                            ft.FilledButton(t("save_settings"), icon=ft.Icons.SAVE),
                         ],
                     ),
                 ],
@@ -169,6 +180,7 @@ def create_settings_view(settings, snack):
         "tf_fee_rate": tf_fee_rate,
         "dd_theme_mode": dd_theme_mode,
         "dd_my_currency": dd_my_currency,
+        "dd_language": dd_language,
         "btn_fetch_rate": btn_fetch_rate,
         "update_save_status": update_save_status,
         "update_exchange_label": update_exchange_label,

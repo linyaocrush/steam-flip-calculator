@@ -49,7 +49,8 @@ def init_db():
             theme_mode TEXT NOT NULL DEFAULT 'LIGHT',
             my_currency TEXT NOT NULL DEFAULT 'CNY',
             my_currency_symbol TEXT NOT NULL DEFAULT '¥',
-            exchange_rate_updated_at TEXT
+            exchange_rate_updated_at TEXT,
+            language TEXT NOT NULL DEFAULT 'zh'
         )
         """
     )
@@ -63,6 +64,8 @@ def init_db():
         cur.execute("ALTER TABLE settings ADD COLUMN my_currency_symbol TEXT NOT NULL DEFAULT '¥'")
     if "exchange_rate_updated_at" not in columns:
         cur.execute("ALTER TABLE settings ADD COLUMN exchange_rate_updated_at TEXT")
+    if "language" not in columns:
+        cur.execute("ALTER TABLE settings ADD COLUMN language TEXT NOT NULL DEFAULT 'zh'")
     cur.execute("SELECT COUNT(*) FROM settings")
     if cur.fetchone()[0] == 0:
         cur.execute("INSERT INTO settings (id) VALUES (1)")
@@ -185,7 +188,8 @@ def get_settings():
             "theme_mode": row["theme_mode"],
             "my_currency": row["my_currency"],
             "my_currency_symbol": row["my_currency_symbol"],
-            "exchange_rate_updated_at": row["exchange_rate_updated_at"]
+            "exchange_rate_updated_at": row["exchange_rate_updated_at"],
+            "language": row["language"]
         })
     return jsonify({
         "buy_currency": "CNY",
@@ -197,7 +201,8 @@ def get_settings():
         "theme_mode": "LIGHT",
         "my_currency": "CNY",
         "my_currency_symbol": "¥",
-        "exchange_rate_updated_at": None
+        "exchange_rate_updated_at": None,
+        "language": "zh"
     })
 
 
@@ -213,6 +218,7 @@ def save_settings():
     theme_mode = data.get("theme_mode", "LIGHT").strip()
     my_currency = data.get("my_currency", "CNY").strip()
     my_currency_symbol = data.get("my_currency_symbol", "¥").strip()
+    language = data.get("language", "zh").strip()
 
     if not buy_currency:
         return jsonify({"error": "买入货币不能为空"}), 400
@@ -224,6 +230,8 @@ def save_settings():
         return jsonify({"error": "主题模式必须是 LIGHT 或 DARK"}), 400
     if not my_currency:
         return jsonify({"error": "我的货币不能为空"}), 400
+    if language not in ["zh", "en", "ja"]:
+        return jsonify({"error": "语言设置必须是 zh、en 或 ja"}), 400
 
     auto_fetch_rate = False
     rate_source = "用户输入"
@@ -249,12 +257,13 @@ def save_settings():
             theme_mode = ?,
             my_currency = ?,
             my_currency_symbol = ?,
-            exchange_rate_updated_at = ?
+            exchange_rate_updated_at = ?,
+            language = ?
         WHERE id = 1
         """,
         (buy_currency, buy_currency_symbol, sell_currency, 
          sell_currency_symbol, exchange_rate, steam_fee_rate, 
-         theme_mode, my_currency, my_currency_symbol, updated_at)
+         theme_mode, my_currency, my_currency_symbol, updated_at, language)
     )
     conn.commit()
     conn.close()

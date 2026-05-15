@@ -3,19 +3,19 @@ from utils import money, pct
 from api import api_delete
 
 
-def create_history_view(settings, snack):
+def create_history_view(settings, snack, t):
     dt = ft.DataTable(
         columns=[
-            ft.DataColumn(ft.Text("时间")),
-            ft.DataColumn(ft.Text("物品")),
-            ft.DataColumn(ft.Text("数量"), numeric=True),
-            ft.DataColumn(ft.Text("成本(单)"), numeric=True),
-            ft.DataColumn(ft.Text("售出(单)"), numeric=True),
-            ft.DataColumn(ft.Text("到账(单)"), numeric=True),
-            ft.DataColumn(ft.Text("花费(总)"), numeric=True),
-            ft.DataColumn(ft.Text("到手(总)"), numeric=True),
-            ft.DataColumn(ft.Text("折扣%"), numeric=True),
-            ft.DataColumn(ft.Text("操作")),
+            ft.DataColumn(ft.Text(t("time"))),
+            ft.DataColumn(ft.Text(t("item"))),
+            ft.DataColumn(ft.Text(t("quantity")), numeric=True),
+            ft.DataColumn(ft.Text(t("cost_unit")), numeric=True),
+            ft.DataColumn(ft.Text(t("sell_unit")), numeric=True),
+            ft.DataColumn(ft.Text(t("net_unit")), numeric=True),
+            ft.DataColumn(ft.Text(t("cost_total")), numeric=True),
+            ft.DataColumn(ft.Text(t("net_total")), numeric=True),
+            ft.DataColumn(ft.Text(t("discount_pct")), numeric=True),
+            ft.DataColumn(ft.Text(t("action"))),
         ],
         rows=[],
     )
@@ -27,9 +27,9 @@ def create_history_view(settings, snack):
         def do_delete(_):
             _, status = api_delete(f"/records/{r['id']}")
             if status == 200:
-                snack.content = ft.Text("已删除记录")
+                snack.content = ft.Text(t("delete_success"))
             else:
-                snack.content = ft.Text("删除失败")
+                snack.content = ft.Text(t("delete_failed"))
             snack.open = True
             on_refresh()
 
@@ -52,7 +52,7 @@ def create_history_view(settings, snack):
                 ft.DataCell(ft.Text(money(r["total_cost"]))),
                 ft.DataCell(ft.Text(money(r["total_net"]))),
                 ft.DataCell(ft.Text(pct(discount))),
-                ft.DataCell(ft.IconButton(icon=ft.Icons.DELETE_OUTLINE, tooltip="删除", on_click=do_delete)),
+                ft.DataCell(ft.IconButton(icon=ft.Icons.DELETE_OUTLINE, tooltip=t("delete"), on_click=do_delete)),
             ]
         )
 

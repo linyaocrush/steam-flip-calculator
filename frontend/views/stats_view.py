@@ -2,7 +2,7 @@ import flet as ft
 from utils import money, pct
 
 
-def create_stats_view(settings):
+def create_stats_view(settings, t):
     st_total_cost = ft.Text("-")
     st_total_net = ft.Text("-")
     st_total_sell = ft.Text("-")
@@ -20,7 +20,7 @@ def create_stats_view(settings):
             content=ft.Column(
                 spacing=14,
                 controls=[
-                    ft.Text("统计汇总（基于历史记录）", size=18, weight=ft.FontWeight.W_700),
+                    ft.Text(t("stats_title"), size=18, weight=ft.FontWeight.W_700),
                     ft.Container(
                         padding=16,
                         border_radius=14,
@@ -28,17 +28,17 @@ def create_stats_view(settings):
                         content=ft.Column(
                             spacing=10,
                             controls=[
-                                kv_row("总数量:", st_total_qty),
-                                kv_row("总花费:", st_total_cost),
-                                kv_row("Steam 售出总额(未扣费):", st_total_sell),
-                                kv_row("总到手余额(已扣手续费):", st_total_net),
+                                kv_row(t("total_qty"), st_total_qty),
+                                kv_row(t("total_cost"), st_total_cost),
+                                kv_row(t("total_sell"), st_total_sell),
+                                kv_row(t("total_net"), st_total_net),
                                 ft.Divider(height=1),
-                                kv_row("整体倒余额比例(花费/到手):", st_ratio),
-                                kv_row("整体折扣:", st_discount),
+                                kv_row(t("total_ratio"), st_ratio),
+                                kv_row(t("total_discount"), st_discount),
                             ],
                         ),
                     ),
-                    ft.Text("提示：整体折扣=1-（总花费/总到手余额）。例如花 70 得 85，折扣≈17.65%。", opacity=0.8),
+                    ft.Text(t("stats_hint"), opacity=0.8),
                 ],
             ),
         ),

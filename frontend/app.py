@@ -2,6 +2,7 @@ import flet as ft
 from config import CURRENCY_SYMBOLS
 from utils import safe_float, safe_int
 from api import api_get, api_post, api_delete, check_api_connection
+from i18n import get_text
 from views import (
     create_loading_view,
     create_calculator_view,
@@ -34,7 +35,12 @@ def main(page: ft.Page):
         "my_currency": "CNY",
         "my_currency_symbol": "¥",
         "exchange_rate_updated_at": None,
+        "language": "zh",
     }
+
+    def get_t():
+        lang = settings.get("language", "zh")
+        return lambda key, **kwargs: get_text(key, lang, **kwargs)
 
     def load_settings():
         data, status = api_get("/settings")
@@ -42,6 +48,7 @@ def main(page: ft.Page):
             settings.update(data)
             theme_mode = settings.get("theme_mode", "LIGHT")
             page.theme_mode = ft.ThemeMode.DARK if theme_mode == "DARK" else ft.ThemeMode.LIGHT
+            page.title = get_text("app_title", settings.get("language", "zh"))
 
     def on_retry(_):
         connect_to_backend()
@@ -58,6 +65,7 @@ def main(page: ft.Page):
 
     def init_app():
         load_settings()
+        t = get_t()
 
         snack = ft.SnackBar(content=ft.Text(""))
         page.snack_bar = snack
@@ -65,7 +73,7 @@ def main(page: ft.Page):
         def on_add_to_history(tf_item, tf_note, tf_cost, tf_steam_sell, tf_qty):
             item_name = (tf_item.value or "").strip()
             if not item_name:
-                snack.content = ft.Text("请填写物品名称")
+                snack.content = ft.Text(t("error_empty_item"))
                 snack.open = True
                 page.update()
                 return
@@ -76,7 +84,7 @@ def main(page: ft.Page):
             note = (tf_note.value or "").strip()
 
             if unit_cost <= 0 or unit_sell <= 0:
-                snack.content = ft.Text("单价必须大于 0")
+                snack.content = ft.Text(t("error_invalid_price"))
                 snack.open = True
                 page.update()
                 return
@@ -90,22 +98,22 @@ def main(page: ft.Page):
             })
 
             if status == 201:
-                snack.content = ft.Text("已记录到历史")
+                snack.content = ft.Text(t("save_success"))
             else:
-                snack.content = ft.Text(data.get("error", "记录失败"))
+                snack.content = ft.Text(data.get("error", t("save_failed")))
             snack.open = True
             refresh_history()
             refresh_stats()
             page.update()
 
-        calculator = create_calculator_view(settings, on_add_to_history)
+        calculator = create_calculator_view(settings, on_add_to_history, t)
         calc_card = calculator["view"]
         recalc = calculator["recalc"]
         tf_cost = calculator["tf_cost"]
         tf_steam_sell = calculator["tf_steam_sell"]
         reverse_box = calculator["reverse_box"]
 
-        history = create_history_view(settings, snack)
+        history = create_history_view(settings, snack, t)
         dt = history["dt"]
         row_for_record = history["row_for_record"]
 
@@ -117,7 +125,7 @@ def main(page: ft.Page):
                 dt.rows = []
             page.update()
 
-        stats = create_stats_view(settings)
+        stats = create_stats_view(settings, t)
         stats_view = stats["view"]
         update_stats = stats["update_stats"]
 
@@ -129,16 +137,16 @@ def main(page: ft.Page):
                 update_stats(None)
             page.update()
 
-        dlg = ft.AlertDialog(modal=True, title=ft.Text("清空全部历史？"), content=ft.Text("此操作不可撤销。"), actions=[])
+        dlg = ft.AlertDialog(modal=True, title=ft.Text(t("confirm_clear")), content=ft.Text(t("confirm_clear_msg")), actions=[])
         page.dialog = dlg
 
         def clear_all(_):
             def yes(_):
                 _, status = api_delete("/records")
                 if status == 200:
-                    snack.content = ft.Text("已清空全部历史")
+                    snack.content = ft.Text(t("clear_success"))
                 else:
-                    snack.content = ft.Text("清空失败")
+                    snack.content = ft.Text(t("clear_failed"))
                 snack.open = True
                 refresh_history()
                 refresh_stats()
@@ -149,7 +157,7 @@ def main(page: ft.Page):
                 dlg.open = False
                 page.update()
 
-            dlg.actions = [ft.TextButton("取消", on_click=no), ft.FilledButton("确认清空", on_click=yes)]
+            dlg.actions = [ft.TextButton(t("cancel"), on_click=no), ft.FilledButton(t("confirm"), on_click=yes)]
             dlg.open = True
             page.update()
 
@@ -160,12 +168,12 @@ def main(page: ft.Page):
                 ft.Row(
                     alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                     controls=[
-                        ft.Text("倒余额历史", size=18, weight=ft.FontWeight.W_700),
+                        ft.Text(t("history_title"), size=18, weight=ft.FontWeight.W_700),
                         ft.Row(
                             spacing=8,
                             controls=[
-                                ft.OutlinedButton("刷新", icon=ft.Icons.REFRESH, on_click=lambda _: (refresh_history(), refresh_stats())),
-                                ft.OutlinedButton("清空全部", icon=ft.Icons.DELETE_SWEEP_OUTLINED, on_click=clear_all),
+                                ft.OutlinedButton(t("refresh"), icon=ft.Icons.REFRESH, on_click=lambda _: (refresh_history(), refresh_stats())),
+                                ft.OutlinedButton(t("clear_all"), icon=ft.Icons.DELETE_SWEEP_OUTLINED, on_click=clear_all),
                             ],
                         ),
                     ],
@@ -174,7 +182,7 @@ def main(page: ft.Page):
             ],
         )
 
-        settings_ui = create_settings_view(settings, snack)
+        settings_ui = create_settings_view(settings, snack, t)
         settings_view = settings_ui["view"]
         tf_buy_currency = settings_ui["tf_buy_currency"]
         tf_sell_currency = settings_ui["tf_sell_currency"]
@@ -182,6 +190,7 @@ def main(page: ft.Page):
         tf_fee_rate = settings_ui["tf_fee_rate"]
         dd_theme_mode = settings_ui["dd_theme_mode"]
         dd_my_currency = settings_ui["dd_my_currency"]
+        dd_language = settings_ui["dd_language"]
         btn_fetch_rate = settings_ui["btn_fetch_rate"]
         update_save_status = settings_ui["update_save_status"]
         update_exchange_label = settings_ui["update_exchange_label"]
@@ -193,22 +202,22 @@ def main(page: ft.Page):
             sell_code = tf_sell_currency.value or "CNY"
             
             if buy_code == sell_code:
-                snack.content = ft.Text("买入货币和卖出货币相同，无需汇率")
+                snack.content = ft.Text(t("error_same_currency"))
                 snack.open = True
                 page.update()
                 return
 
-            snack.content = ft.Text("正在获取汇率...")
+            snack.content = ft.Text(t("fetching_rate"))
             snack.open = True
             page.update()
 
             data, status = api_get(f"/exchange-rate?base={buy_code}&target={sell_code}")
             if status == 200 and "rate" in data:
                 tf_exchange_rate.value = str(data["rate"])
-                snack.content = ft.Text(f"汇率获取成功：{buy_code} -> {sell_code} = {data['rate']}")
+                snack.content = ft.Text(t("rate_success", base=buy_code, target=sell_code, rate=data["rate"]))
                 mark_unsaved()
             else:
-                snack.content = ft.Text(data.get("error", "汇率获取失败"))
+                snack.content = ft.Text(data.get("error", t("rate_failed")))
             snack.open = True
             page.update()
 
@@ -221,14 +230,15 @@ def main(page: ft.Page):
             fee_rate = safe_float(tf_fee_rate.value) / 100.0
             theme_mode = dd_theme_mode.value or "LIGHT"
             my_currency = dd_my_currency.value or "CNY"
+            language = dd_language.value or "zh"
 
             if fee_rate <= 0 or fee_rate >= 1:
-                snack.content = ft.Text("手续费率必须在 0-100% 之间")
+                snack.content = ft.Text(t("error_invalid_fee"))
                 snack.open = True
                 page.update()
                 return
 
-            snack.content = ft.Text("正在保存设置...")
+            snack.content = ft.Text(t("fetching_rate"))
             snack.open = True
             page.update()
 
@@ -242,6 +252,7 @@ def main(page: ft.Page):
                 "theme_mode": theme_mode,
                 "my_currency": my_currency,
                 "my_currency_symbol": CURRENCY_SYMBOLS[my_currency],
+                "language": language,
             })
 
             if status == 200:
@@ -256,18 +267,19 @@ def main(page: ft.Page):
                     "my_currency": my_currency,
                     "my_currency_symbol": CURRENCY_SYMBOLS[my_currency],
                     "exchange_rate_updated_at": data.get("exchange_rate_updated_at"),
+                    "language": language,
                 })
                 tf_exchange_rate.value = str(settings["exchange_rate"])
                 page.theme_mode = ft.ThemeMode.DARK if theme_mode == "DARK" else ft.ThemeMode.LIGHT
-                tf_exchange_rate.label = f"汇率（{buy_currency} -> {sell_currency}）"
-                snack.content = ft.Text("设置已保存")
+                tf_exchange_rate.label = t("exchange_rate", from_curr=buy_currency, to_curr=sell_currency)
+                snack.content = ft.Text(t("save_success"))
                 tf_cost.prefix = ft.Text(settings["buy_currency_symbol"])
                 tf_steam_sell.prefix = ft.Text(settings["sell_currency_symbol"])
-                reverse_box.content.controls[1].value = f"Steam 市场固定 {fee_rate * 100:.1f}% 手续费"
+                reverse_box.content.controls[1].value = t("steam_fee", fee=fee_rate * 100)
                 recalc()
                 update_save_status(True)
             else:
-                snack.content = ft.Text(data.get("error", "保存失败"))
+                snack.content = ft.Text(data.get("error", t("save_failed")))
             snack.open = True
             page.update()
 
@@ -286,22 +298,22 @@ def main(page: ft.Page):
 
         tab_buttons = ft.Row([
             ft.Button(
-                "计算器",
+                t("calculator"),
                 icon=ft.Icons.CALCULATE_OUTLINED,
                 on_click=lambda _: switch_view("calculator"),
             ),
             ft.Button(
-                "历史",
+                t("history"),
                 icon=ft.Icons.HISTORY,
                 on_click=lambda _: switch_view("history"),
             ),
             ft.Button(
-                "统计",
+                t("stats"),
                 icon=ft.Icons.INSIGHTS_OUTLINED,
                 on_click=lambda _: switch_view("stats"),
             ),
             ft.Button(
-                "设置",
+                t("settings"),
                 icon=ft.Icons.SETTINGS_OUTLINED,
                 on_click=lambda _: switch_view("settings"),
             ),
@@ -318,9 +330,9 @@ def main(page: ft.Page):
                             ft.Row(
                                 spacing=10,
                                 controls=[ft.Icon(ft.Icons.ACCOUNT_BALANCE_WALLET_OUTLINED),
-                                          ft.Text("Steam 倒余额工具箱", size=20, weight=ft.FontWeight.W_700)],
+                                          ft.Text(t("app_title"), size=20, weight=ft.FontWeight.W_700)],
                             ),
-                            ft.OutlinedButton("切换明/暗", icon=ft.Icons.DARK_MODE_OUTLINED, on_click=toggle_theme),
+                            ft.OutlinedButton(t("toggle_theme"), icon=ft.Icons.DARK_MODE_OUTLINED, on_click=toggle_theme),
                         ],
                     ),
                     tab_buttons,
@@ -346,23 +358,23 @@ def main(page: ft.Page):
     def connect_to_backend():
         loading_error.value = ""
         retry_button.visible = False
-        loading_text.value = "正在连接后端服务..."
+        loading_text.value = get_text("loading", settings.get("language", "zh"))
         page.update()
 
         for attempt in range(5):
-            loading_text.value = f"正在连接后端服务... ({attempt + 1}/5)"
+            loading_text.value = get_text("loading", settings.get("language", "zh")) + f" ({attempt + 1}/5)"
             loading_progress.value = (attempt + 1) / 5
             page.update()
 
             if check_api_connection():
-                loading_text.value = "连接成功！正在初始化..."
+                loading_text.value = get_text("loading_success", settings.get("language", "zh"))
                 loading_progress.value = 1.0
                 page.update()
                 init_app()
                 return
 
-        loading_text.value = "连接失败"
-        loading_error.value = "无法连接到后端服务，请确保后端已启动\n服务地址: http://localhost:5000"
+        loading_text.value = get_text("loading_failed", settings.get("language", "zh"))
+        loading_error.value = get_text("connection_error", settings.get("language", "zh"))
         loading_progress.value = 0
         retry_button.visible = True
         page.update()
