@@ -233,13 +233,18 @@ def save_settings():
     if language not in ["zh", "en", "ja"]:
         return jsonify({"error": "语言设置必须是 zh、en 或 ja"}), 400
 
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT exchange_rate_updated_at FROM settings WHERE id = 1")
+    row = cur.fetchone()
+    current_updated_at = row["exchange_rate_updated_at"] if row else None
+    conn.close()
+
     auto_fetch_rate = False
     rate_source = "用户输入"
-    
-    if buy_currency != sell_currency:
-        exchange_rate, updated_at, rate_source = get_exchange_rate_cached(buy_currency, sell_currency)
-        auto_fetch_rate = True
-    else:
+    updated_at = current_updated_at
+
+    if buy_currency == sell_currency:
         exchange_rate = 1.0
         updated_at = None
 

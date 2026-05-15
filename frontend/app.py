@@ -1,7 +1,7 @@
 import flet as ft
 from config import CURRENCY_SYMBOLS
 from utils import safe_float, safe_int
-from api import api_get, api_post, api_delete, check_api_connection
+from api import api_get, api_post, api_delete, check_api_connection, api_get_parallel
 from i18n import get_text
 from views import (
     create_loading_view,
@@ -49,6 +49,10 @@ def main(page: ft.Page):
             theme_mode = settings.get("theme_mode", "LIGHT")
             page.theme_mode = ft.ThemeMode.DARK if theme_mode == "DARK" else ft.ThemeMode.LIGHT
             page.title = get_text("app_title", settings.get("language", "zh"))
+
+    def rebuild_ui():
+        page.controls.clear()
+        init_app()
 
     def on_retry(_):
         connect_to_backend()
@@ -137,6 +141,24 @@ def main(page: ft.Page):
                 update_stats(None)
             page.update()
 
+        def refresh_history_and_stats():
+            results = api_get_parallel(["/records", "/stats"])
+            records_result, stats_result = results
+
+            records, r_status = records_result
+            if r_status == 200:
+                dt.rows = [row_for_record(r, refresh_history) for r in records]
+            else:
+                dt.rows = []
+
+            stats_data, s_status = stats_result
+            if s_status == 200:
+                update_stats(stats_data)
+            else:
+                update_stats(None)
+
+            page.update()
+
         dlg = ft.AlertDialog(modal=True, title=ft.Text(t("confirm_clear")), content=ft.Text(t("confirm_clear_msg")), actions=[])
         page.dialog = dlg
 
@@ -172,7 +194,7 @@ def main(page: ft.Page):
                         ft.Row(
                             spacing=8,
                             controls=[
-                                ft.OutlinedButton(t("refresh"), icon=ft.Icons.REFRESH, on_click=lambda _: (refresh_history(), refresh_stats())),
+                                ft.OutlinedButton(t("refresh"), icon=ft.Icons.REFRESH, on_click=lambda _: refresh_history_and_stats()),
                                 ft.OutlinedButton(t("clear_all"), icon=ft.Icons.DELETE_SWEEP_OUTLINED, on_click=clear_all),
                             ],
                         ),
@@ -182,7 +204,7 @@ def main(page: ft.Page):
             ],
         )
 
-        settings_ui = create_settings_view(settings, snack, t)
+        settings_ui = create_settings_view(settings, snack, t, page)
         settings_view = settings_ui["view"]
         tf_buy_currency = settings_ui["tf_buy_currency"]
         tf_sell_currency = settings_ui["tf_sell_currency"]
@@ -195,12 +217,15 @@ def main(page: ft.Page):
         update_save_status = settings_ui["update_save_status"]
         update_exchange_label = settings_ui["update_exchange_label"]
         mark_unsaved = settings_ui["mark_unsaved"]
+        check_unsaved = settings_ui["check_unsaved"]
         save_button = settings_ui["save_button"]
+
+        check_unsaved()
 
         def fetch_exchange_rate(_):
             buy_code = tf_buy_currency.value or "CNY"
             sell_code = tf_sell_currency.value or "CNY"
-            
+
             if buy_code == sell_code:
                 snack.content = ft.Text(t("error_same_currency"))
                 snack.open = True
@@ -256,6 +281,7 @@ def main(page: ft.Page):
             })
 
             if status == 200:
+                old_language = settings.get("language", "zh")
                 settings.update({
                     "buy_currency": buy_currency,
                     "buy_currency_symbol": CURRENCY_SYMBOLS[buy_currency],
@@ -272,12 +298,16 @@ def main(page: ft.Page):
                 tf_exchange_rate.value = str(settings["exchange_rate"])
                 page.theme_mode = ft.ThemeMode.DARK if theme_mode == "DARK" else ft.ThemeMode.LIGHT
                 tf_exchange_rate.label = t("exchange_rate", from_curr=buy_currency, to_curr=sell_currency)
-                snack.content = ft.Text(t("save_success"))
+                snack.content = ft.Text(t("saved"))
                 tf_cost.prefix = ft.Text(settings["buy_currency_symbol"])
                 tf_steam_sell.prefix = ft.Text(settings["sell_currency_symbol"])
                 reverse_box.content.controls[1].value = t("steam_fee", fee=fee_rate * 100)
                 recalc()
                 update_save_status(True)
+                page.update()
+                if language != old_language:
+                    rebuild_ui()
+                return
             else:
                 snack.content = ft.Text(data.get("error", t("save_failed")))
             snack.open = True
