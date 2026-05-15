@@ -4,6 +4,24 @@ import requests
 # API 配置
 API_BASE_URL = "http://localhost:5000/api"
 
+# 货币列表
+CURRENCIES = [
+    {"code": "CNY", "name": "人民币", "symbol": "¥"},
+    {"code": "USD", "name": "美元", "symbol": "$"},
+    {"code": "JPY", "name": "日元", "symbol": "¥"},
+    {"code": "EUR", "name": "欧元", "symbol": "€"},
+    {"code": "GBP", "name": "英镑", "symbol": "£"},
+    {"code": "KRW", "name": "韩元", "symbol": "₩"},
+    {"code": "HKD", "name": "港币", "symbol": "HK$"},
+    {"code": "AUD", "name": "澳元", "symbol": "A$"},
+    {"code": "CAD", "name": "加元", "symbol": "C$"},
+    {"code": "SGD", "name": "新加坡元", "symbol": "S$"},
+]
+
+CURRENCY_CODES = [c["code"] for c in CURRENCIES]
+CURRENCY_SYMBOLS = {c["code"]: c["symbol"] for c in CURRENCIES}
+CURRENCY_NAMES = {c["code"]: c["name"] for c in CURRENCIES}
+
 
 def money(x: float) -> str:
     return f"{x:,.2f}"
@@ -68,7 +86,7 @@ def check_api_connection():
 
 
 def main(page: ft.Page):
-    page.title = "Steam 倒余额计算器"
+    page.title = "Steam 倒余额工具箱"
     page.window_width = 1040
     page.window_height = 760
     page.theme_mode = ft.ThemeMode.LIGHT
@@ -78,6 +96,16 @@ def main(page: ft.Page):
         color_scheme_seed=ft.Colors.INDIGO,
         visual_density=ft.VisualDensity.COMFORTABLE,
     )
+
+    # 全局设置变量
+    settings = {
+        "buy_currency": "CNY",
+        "buy_currency_symbol": "¥",
+        "sell_currency": "CNY",
+        "sell_currency_symbol": "¥",
+        "exchange_rate": 1.0,
+        "steam_fee_rate": 0.15,
+    }
 
     # 加载状态变量
     loading_text = ft.Text("正在连接后端服务...", size=16)
@@ -92,7 +120,7 @@ def main(page: ft.Page):
         spacing=20,
         controls=[
             ft.Icon(ft.Icons.ACCOUNT_BALANCE_WALLET_OUTLINED, size=64, color=ft.Colors.INDIGO),
-            ft.Text("Steam 倒余额计算器", size=24, weight=ft.FontWeight.W_700),
+            ft.Text("Steam 倒余额工具箱", size=24, weight=ft.FontWeight.W_700),
             loading_progress,
             loading_text,
             loading_error,
@@ -103,8 +131,16 @@ def main(page: ft.Page):
     page.add(loading_view)
     page.update()
 
+    def load_settings():
+        """加载设置"""
+        data, status = api_get("/settings")
+        if status == 200:
+            settings.update(data)
+
     def init_app():
         """初始化应用主界面"""
+        load_settings()
+        
         snack = ft.SnackBar(content=ft.Text(""))
         page.snack_bar = snack
 
@@ -115,14 +151,14 @@ def main(page: ft.Page):
         tf_cost = ft.TextField(
             label="第三方成本（单价）",
             value="70",
-            prefix=ft.Text("¥"),
+            prefix=ft.Text(settings["buy_currency_symbol"]),
             keyboard_type=ft.KeyboardType.NUMBER,
             expand=True,
         )
         tf_steam_sell = ft.TextField(
             label="Steam 售出金额（单价）",
             value="100",
-            prefix=ft.Text("¥"),
+            prefix=ft.Text(settings["sell_currency_symbol"]),
             keyboard_type=ft.KeyboardType.NUMBER,
             expand=True,
         )
@@ -145,20 +181,25 @@ def main(page: ft.Page):
             unit_cost = safe_float(tf_cost.value)
             unit_sell = safe_float(tf_steam_sell.value)
             qty = safe_int(tf_qty.value)
+            
+            use_exchange = settings["buy_currency"] != settings["sell_currency"]
 
             data, status = api_post("/calculate", {
                 "unit_cost": unit_cost,
                 "unit_steam_sell": unit_sell,
-                "qty": qty
+                "qty": qty,
+                "use_exchange": use_exchange,
+                "exchange_rate": settings["exchange_rate"],
+                "fee_rate": settings["steam_fee_rate"],
             })
 
             if status == 200:
-                out_unit_net.value = f"¥ {money(data['unit_net'])}"
-                out_total_cost.value = f"¥ {money(data['total_cost'])}"
-                out_total_net.value = f"¥ {money(data['total_net'])}"
+                out_unit_net.value = f"{settings['sell_currency_symbol']} {money(data['unit_net'])}"
+                out_total_cost.value = f"{settings['sell_currency_symbol']} {money(data['total_cost'])}"
+                out_total_net.value = f"{settings['sell_currency_symbol']} {money(data['total_net'])}"
                 out_ratio.value = f"{pct(data['ratio'])}（成本/到手余额）"
                 out_discount.value = f"{pct(data['discount'])}"
-                out_need_sell.value = f"¥ {money(data['need_sell'])}（单价）"
+                out_need_sell.value = f"{settings['sell_currency_symbol']} {money(data['need_sell'])}（单价）"
             else:
                 out_unit_net.value = "-"
                 out_total_cost.value = "-"
@@ -245,9 +286,9 @@ def main(page: ft.Page):
         def refresh_stats():
             stats, status = api_get("/stats")
             if status == 200:
-                st_total_cost.value = f"¥ {money(stats['total_cost'])}"
-                st_total_net.value = f"¥ {money(stats['total_net'])}"
-                st_total_sell.value = f"¥ {money(stats['total_steam_sell'])}"
+                st_total_cost.value = f"{settings['sell_currency_symbol']} {money(stats['total_cost'])}"
+                st_total_net.value = f"{settings['sell_currency_symbol']} {money(stats['total_net'])}"
+                st_total_sell.value = f"{settings['sell_currency_symbol']} {money(stats['total_steam_sell'])}"
                 st_total_qty.value = f"{stats['total_qty']}"
                 st_ratio.value = pct(stats["ratio"]) if stats["total_net"] > 0 else "-"
                 st_discount.value = pct(stats["discount"]) if stats["total_net"] > 0 else "-"
@@ -342,6 +383,7 @@ def main(page: ft.Page):
             ),
         )
 
+        fee_percent = settings["steam_fee_rate"] * 100
         reverse_box = ft.Container(
             width=340,
             padding=14,
@@ -351,7 +393,7 @@ def main(page: ft.Page):
                 spacing=10,
                 controls=[
                     ft.Text("反推挂刀价（规则）", size=14, weight=ft.FontWeight.W_600),
-                    ft.Text("Steam 市场固定 15% 手续费：卖 100 到账 85", size=12, opacity=0.8),
+                    ft.Text(f"Steam 市场固定 {fee_percent:.1f}% 手续费", size=12, opacity=0.8),
                     kv_row("保本售卖价(单价):", out_need_sell),
                     ft.FilledButton("记录到历史", icon=ft.Icons.ADD_CIRCLE_OUTLINE, on_click=add_to_history),
                 ],
@@ -413,7 +455,7 @@ def main(page: ft.Page):
                                     kv_row("总数量:", st_total_qty),
                                     kv_row("总花费:", st_total_cost),
                                     kv_row("Steam 售出总额(未扣费):", st_total_sell),
-                                    kv_row("总到手余额(已扣15%):", st_total_net),
+                                    kv_row("总到手余额(已扣手续费):", st_total_net),
                                     ft.Divider(height=1),
                                     kv_row("整体倒余额比例(花费/到手):", st_ratio),
                                     kv_row("整体折扣:", st_discount),
@@ -421,6 +463,145 @@ def main(page: ft.Page):
                             ),
                         ),
                         ft.Text("提示：整体折扣=1-（总花费/总到手余额）。例如花 70 得 85，折扣≈17.65%。", opacity=0.8),
+                    ],
+                ),
+            ),
+        )
+
+        # ---- Settings View
+        tf_buy_currency = ft.Dropdown(
+            label="买入货币",
+            options=[ft.dropdown.Option(code, f"{code} - {CURRENCY_NAMES[code]}") for code in CURRENCY_CODES],
+            value=settings["buy_currency"],
+            expand=True,
+        )
+        
+        tf_sell_currency = ft.Dropdown(
+            label="卖出货币（Steam 市场）",
+            options=[ft.dropdown.Option(code, f"{code} - {CURRENCY_NAMES[code]}") for code in CURRENCY_CODES],
+            value=settings["sell_currency"],
+            expand=True,
+        )
+        
+        tf_exchange_rate = ft.TextField(
+            label=f"汇率（{settings['buy_currency']} -> {settings['sell_currency']}）",
+            value=str(settings["exchange_rate"]),
+            keyboard_type=ft.KeyboardType.NUMBER,
+            expand=True,
+        )
+        
+        tf_fee_rate = ft.TextField(
+            label="Steam 手续费率 (%)",
+            value=f"{settings['steam_fee_rate'] * 100:.1f}",
+            keyboard_type=ft.KeyboardType.NUMBER,
+            width=150,
+        )
+        
+        def update_exchange_label(e):
+            buy_code = tf_buy_currency.value if tf_buy_currency.value else "CNY"
+            sell_code = tf_sell_currency.value if tf_sell_currency.value else "CNY"
+            tf_exchange_rate.label = f"汇率（{buy_code} -> {sell_code}）"
+            page.update()
+        
+        tf_buy_currency.on_change = update_exchange_label
+        tf_sell_currency.on_change = update_exchange_label
+
+        def save_settings_click(_):
+            buy_currency = tf_buy_currency.value or "CNY"
+            sell_currency = tf_sell_currency.value or "CNY"
+            exchange_rate = safe_float(tf_exchange_rate.value)
+            fee_rate = safe_float(tf_fee_rate.value) / 100.0
+
+            if exchange_rate <= 0:
+                snack.content = ft.Text("汇率必须大于 0")
+                snack.open = True
+                page.update()
+                return
+            
+            if fee_rate <= 0 or fee_rate >= 1:
+                snack.content = ft.Text("手续费率必须在 0-100% 之间")
+                snack.open = True
+                page.update()
+                return
+
+            data, status = api_post("/settings", {
+                "buy_currency": buy_currency,
+                "buy_currency_symbol": CURRENCY_SYMBOLS[buy_currency],
+                "sell_currency": sell_currency,
+                "sell_currency_symbol": CURRENCY_SYMBOLS[sell_currency],
+                "exchange_rate": exchange_rate,
+                "steam_fee_rate": fee_rate,
+            })
+
+            if status == 200:
+                settings.update({
+                    "buy_currency": buy_currency,
+                    "buy_currency_symbol": CURRENCY_SYMBOLS[buy_currency],
+                    "sell_currency": sell_currency,
+                    "sell_currency_symbol": CURRENCY_SYMBOLS[sell_currency],
+                    "exchange_rate": exchange_rate,
+                    "steam_fee_rate": fee_rate,
+                })
+                # ✅ 同步更新“汇率（X -> Y）”显示
+                tf_exchange_rate.label = f"汇率（{buy_currency} -> {sell_currency}）"
+                snack.content = ft.Text("设置已保存")
+                # 更新输入框的货币符号
+                tf_cost.prefix = ft.Text(settings["buy_currency_symbol"])
+                tf_steam_sell.prefix = ft.Text(settings["sell_currency_symbol"])
+                # 更新手续费提示
+                reverse_box.content.controls[1].value = f"Steam 市场固定 {fee_rate * 100:.1f}% 手续费"
+                recalc()
+            else:
+                snack.content = ft.Text(data.get("error", "保存失败"))
+            snack.open = True
+            page.update()
+
+        def reset_settings(_):
+            tf_buy_currency.value = "CNY"
+            tf_sell_currency.value = "CNY"
+            tf_exchange_rate.value = "1.0"
+            tf_fee_rate.value = "15.0"
+            update_exchange_label()
+            page.update()
+
+        settings_view = ft.Card(
+            elevation=1,
+            content=ft.Container(
+                padding=18,
+                content=ft.Column(
+                    spacing=14,
+                    controls=[
+                        ft.Text("货币与汇率设置", size=18, weight=ft.FontWeight.W_700),
+                        ft.Container(
+                            padding=16,
+                            border_radius=14,
+                            bgcolor=ft.Colors.SURFACE_CONTAINER,
+                            content=ft.Column(
+                                spacing=14,
+                                controls=[
+                                    ft.Row([tf_buy_currency, tf_sell_currency], spacing=12),
+                                    ft.Row([tf_exchange_rate, tf_fee_rate], spacing=12),
+                                ],
+                            ),
+                        ),
+                        ft.Text("说明：", size=14, weight=ft.FontWeight.W_600),
+                        ft.Column(
+                            spacing=4,
+                            controls=[
+                                ft.Text("- 买入货币：在第三方平台购买物品使用的货币", size=12, opacity=0.8),
+                                ft.Text("- 卖出货币：Steam 市场所在区域的货币", size=12, opacity=0.8),
+                                ft.Text("- 汇率：买入货币兑换为卖出货币的比率", size=12, opacity=0.8),
+                                ft.Text("- 手续费：Steam 市场收取的交易手续费（默认 15%）", size=12, opacity=0.8),
+                            ],
+                        ),
+                        ft.Row(
+                            spacing=10,
+                            alignment=ft.MainAxisAlignment.END,
+                            controls=[
+                                ft.OutlinedButton("重置", icon=ft.Icons.UNDO, on_click=reset_settings),
+                                ft.FilledButton("保存设置", icon=ft.Icons.SAVE, on_click=save_settings_click),
+                            ],
+                        ),
                     ],
                 ),
             ),
@@ -434,6 +615,7 @@ def main(page: ft.Page):
             calc_card.visible = (view_name == "calculator")
             history_view.visible = (view_name == "history")
             stats_view.visible = (view_name == "stats")
+            settings_view.visible = (view_name == "settings")
             page.update()
 
         tab_buttons = ft.Row([
@@ -451,6 +633,11 @@ def main(page: ft.Page):
                 "统计",
                 icon=ft.Icons.INSIGHTS_OUTLINED,
                 on_click=lambda _: switch_view("stats"),
+            ),
+            ft.Button(
+                "设置",
+                icon=ft.Icons.SETTINGS_OUTLINED,
+                on_click=lambda _: switch_view("settings"),
             ),
         ])
 
@@ -474,6 +661,7 @@ def main(page: ft.Page):
                     calc_card,
                     history_view,
                     stats_view,
+                    settings_view,
                 ],
             ),
         )
@@ -484,6 +672,7 @@ def main(page: ft.Page):
 
         history_view.visible = False
         stats_view.visible = False
+        settings_view.visible = False
         refresh_history()
         refresh_stats()
         recalc()

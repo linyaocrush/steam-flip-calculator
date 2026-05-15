@@ -37,6 +37,22 @@ def init_db():
         )
         """
     )
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS settings (
+            id INTEGER PRIMARY KEY,
+            buy_currency TEXT NOT NULL DEFAULT 'CNY',
+            buy_currency_symbol TEXT NOT NULL DEFAULT '¥',
+            sell_currency TEXT NOT NULL DEFAULT 'CNY',
+            sell_currency_symbol TEXT NOT NULL DEFAULT '¥',
+            exchange_rate REAL NOT NULL DEFAULT 1.0,
+            steam_fee_rate REAL NOT NULL DEFAULT 0.15
+        )
+        """
+    )
+    cur.execute("SELECT COUNT(*) FROM settings")
+    if cur.fetchone()[0] == 0:
+        cur.execute("INSERT INTO settings (id) VALUES (1)")
     conn.commit()
     conn.close()
 
@@ -50,15 +66,28 @@ def calculate():
     unit_cost = float(data.get("unit_cost", 0))
     unit_steam_sell = float(data.get("unit_steam_sell", 0))
     qty = int(data.get("qty", 1))
+    use_exchange = data.get("use_exchange", False)
+    exchange_rate = float(data.get("exchange_rate", 1.0))
+    fee_rate = float(data.get("fee_rate", 0.15))
+    net_rate = 1.0 - fee_rate
 
-    unit_net = unit_steam_sell * NET_RATE
-    total_cost = unit_cost * qty
+    unit_net = unit_steam_sell * net_rate
+    
+    if use_exchange:
+        total_cost = unit_cost * qty * exchange_rate
+    else:
+        total_cost = unit_cost * qty
+        
     total_net = unit_net * qty
     total_steam_sell = unit_steam_sell * qty
 
-    ratio = (unit_cost / unit_net) if unit_net > 0 else 0.0
-    discount = (1.0 - ratio) if unit_net > 0 else 0.0
-    need_sell = (unit_cost / NET_RATE) if NET_RATE > 0 else 0.0
+    ratio = (total_cost / total_net) if total_net > 0 else 0.0
+    discount = (1.0 - ratio) if total_net > 0 else 0.0
+    
+    if use_exchange:
+        need_sell = (unit_cost * exchange_rate / net_rate) if net_rate > 0 else 0.0
+    else:
+        need_sell = (unit_cost / net_rate) if net_rate > 0 else 0.0
 
     return jsonify({
         "unit_net": unit_net,
@@ -69,6 +98,74 @@ def calculate():
         "discount": discount,
         "need_sell": need_sell
     })
+
+
+@app.route("/api/settings", methods=["GET"])
+def get_settings():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM settings WHERE id = 1")
+    row = cur.fetchone()
+    conn.close()
+    
+    if row:
+        return jsonify({
+            "buy_currency": row["buy_currency"],
+            "buy_currency_symbol": row["buy_currency_symbol"],
+            "sell_currency": row["sell_currency"],
+            "sell_currency_symbol": row["sell_currency_symbol"],
+            "exchange_rate": row["exchange_rate"],
+            "steam_fee_rate": row["steam_fee_rate"]
+        })
+    return jsonify({
+        "buy_currency": "CNY",
+        "buy_currency_symbol": "¥",
+        "sell_currency": "CNY",
+        "sell_currency_symbol": "¥",
+        "exchange_rate": 1.0,
+        "steam_fee_rate": 0.15
+    })
+
+
+@app.route("/api/settings", methods=["POST"])
+def save_settings():
+    data = request.json
+    buy_currency = data.get("buy_currency", "CNY").strip()
+    buy_currency_symbol = data.get("buy_currency_symbol", "¥").strip()
+    sell_currency = data.get("sell_currency", "CNY").strip()
+    sell_currency_symbol = data.get("sell_currency_symbol", "¥").strip()
+    exchange_rate = float(data.get("exchange_rate", 1.0))
+    steam_fee_rate = float(data.get("steam_fee_rate", 0.15))
+
+    if not buy_currency:
+        return jsonify({"error": "买入货币不能为空"}), 400
+    if not sell_currency:
+        return jsonify({"error": "卖出货币不能为空"}), 400
+    if exchange_rate <= 0:
+        return jsonify({"error": "汇率必须大于 0"}), 400
+    if steam_fee_rate < 0 or steam_fee_rate >= 1:
+        return jsonify({"error": "手续费率必须在 0 到 1 之间"}), 400
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        UPDATE settings SET 
+            buy_currency = ?,
+            buy_currency_symbol = ?,
+            sell_currency = ?,
+            sell_currency_symbol = ?,
+            exchange_rate = ?,
+            steam_fee_rate = ?
+        WHERE id = 1
+        """,
+        (buy_currency, buy_currency_symbol, sell_currency, 
+         sell_currency_symbol, exchange_rate, steam_fee_rate)
+    )
+    conn.commit()
+    conn.close()
+
+    return jsonify({"message": "设置已保存"}), 200
 
 
 @app.route("/api/records", methods=["GET"])
