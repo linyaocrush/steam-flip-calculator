@@ -52,6 +52,37 @@ def safe_int(s: str) -> int:
         return 1
 
 
+def calculate_local(unit_cost, unit_sell, qty, use_exchange, exchange_rate, fee_rate):
+    """本地实时计算，完全替代 /api/calculate，零网络开销"""
+    net_rate = 1.0 - fee_rate
+    unit_net = unit_sell * net_rate
+
+    if use_exchange:
+        total_cost = unit_cost * qty * exchange_rate
+    else:
+        total_cost = unit_cost * qty
+
+    total_net = unit_net * qty
+    total_steam_sell = unit_sell * qty
+    ratio = (total_cost / total_net) if total_net > 0 else 0.0
+    discount = (1.0 - ratio) if total_net > 0 else 0.0
+
+    if use_exchange:
+        need_sell = (unit_cost * exchange_rate / net_rate) if net_rate > 0 else 0.0
+    else:
+        need_sell = (unit_cost / net_rate) if net_rate > 0 else 0.0
+
+    return {
+        "unit_net": unit_net,
+        "total_cost": total_cost,
+        "total_net": total_net,
+        "total_steam_sell": total_steam_sell,
+        "ratio": ratio,
+        "discount": discount,
+        "need_sell": need_sell,
+    }
+
+
 def api_post(endpoint, data=None):
     try:
         response = requests.post(f"{API_BASE_URL}{endpoint}", json=data, timeout=5)
@@ -140,7 +171,7 @@ def main(page: ft.Page):
     def init_app():
         """初始化应用主界面"""
         load_settings()
-        
+
         snack = ft.SnackBar(content=ft.Text(""))
         page.snack_bar = snack
 
@@ -181,32 +212,24 @@ def main(page: ft.Page):
             unit_cost = safe_float(tf_cost.value)
             unit_sell = safe_float(tf_steam_sell.value)
             qty = safe_int(tf_qty.value)
-            
+
             use_exchange = settings["buy_currency"] != settings["sell_currency"]
 
-            data, status = api_post("/calculate", {
-                "unit_cost": unit_cost,
-                "unit_steam_sell": unit_sell,
-                "qty": qty,
-                "use_exchange": use_exchange,
-                "exchange_rate": settings["exchange_rate"],
-                "fee_rate": settings["steam_fee_rate"],
-            })
+            data = calculate_local(
+                unit_cost,
+                unit_sell,
+                qty,
+                use_exchange,
+                settings["exchange_rate"],
+                settings["steam_fee_rate"],
+            )
 
-            if status == 200:
-                out_unit_net.value = f"{settings['sell_currency_symbol']} {money(data['unit_net'])}"
-                out_total_cost.value = f"{settings['sell_currency_symbol']} {money(data['total_cost'])}"
-                out_total_net.value = f"{settings['sell_currency_symbol']} {money(data['total_net'])}"
-                out_ratio.value = f"{pct(data['ratio'])}（成本/到手余额）"
-                out_discount.value = f"{pct(data['discount'])}"
-                out_need_sell.value = f"{settings['sell_currency_symbol']} {money(data['need_sell'])}（单价）"
-            else:
-                out_unit_net.value = "-"
-                out_total_cost.value = "-"
-                out_total_net.value = "-"
-                out_ratio.value = "-"
-                out_discount.value = "-"
-                out_need_sell.value = "-"
+            out_unit_net.value = f"{settings['sell_currency_symbol']} {money(data['unit_net'])}"
+            out_total_cost.value = f"{settings['sell_currency_symbol']} {money(data['total_cost'])}"
+            out_total_net.value = f"{settings['sell_currency_symbol']} {money(data['total_net'])}"
+            out_ratio.value = f"{pct(data['ratio'])}（成本/到手余额）"
+            out_discount.value = f"{pct(data['discount'])}"
+            out_need_sell.value = f"{settings['sell_currency_symbol']} {money(data['need_sell'])}（单价）"
             page.update()
 
         for t in (tf_cost, tf_steam_sell, tf_qty):
@@ -475,34 +498,34 @@ def main(page: ft.Page):
             value=settings["buy_currency"],
             expand=True,
         )
-        
+
         tf_sell_currency = ft.Dropdown(
             label="卖出货币（Steam 市场）",
             options=[ft.dropdown.Option(code, f"{code} - {CURRENCY_NAMES[code]}") for code in CURRENCY_CODES],
             value=settings["sell_currency"],
             expand=True,
         )
-        
+
         tf_exchange_rate = ft.TextField(
             label=f"汇率（{settings['buy_currency']} -> {settings['sell_currency']}）",
             value=str(settings["exchange_rate"]),
             keyboard_type=ft.KeyboardType.NUMBER,
             expand=True,
         )
-        
+
         tf_fee_rate = ft.TextField(
             label="Steam 手续费率 (%)",
             value=f"{settings['steam_fee_rate'] * 100:.1f}",
             keyboard_type=ft.KeyboardType.NUMBER,
             width=150,
         )
-        
+
         def update_exchange_label(e):
             buy_code = tf_buy_currency.value if tf_buy_currency.value else "CNY"
             sell_code = tf_sell_currency.value if tf_sell_currency.value else "CNY"
             tf_exchange_rate.label = f"汇率（{buy_code} -> {sell_code}）"
             page.update()
-        
+
         tf_buy_currency.on_change = update_exchange_label
         tf_sell_currency.on_change = update_exchange_label
 
@@ -517,7 +540,7 @@ def main(page: ft.Page):
                 snack.open = True
                 page.update()
                 return
-            
+
             if fee_rate <= 0 or fee_rate >= 1:
                 snack.content = ft.Text("手续费率必须在 0-100% 之间")
                 snack.open = True
@@ -542,13 +565,10 @@ def main(page: ft.Page):
                     "exchange_rate": exchange_rate,
                     "steam_fee_rate": fee_rate,
                 })
-                # ✅ 同步更新“汇率（X -> Y）”显示
                 tf_exchange_rate.label = f"汇率（{buy_currency} -> {sell_currency}）"
                 snack.content = ft.Text("设置已保存")
-                # 更新输入框的货币符号
                 tf_cost.prefix = ft.Text(settings["buy_currency_symbol"])
                 tf_steam_sell.prefix = ft.Text(settings["sell_currency_symbol"])
-                # 更新手续费提示
                 reverse_box.content.controls[1].value = f"Steam 市场固定 {fee_rate * 100:.1f}% 手续费"
                 recalc()
             else:

@@ -7,8 +7,6 @@ app = Flask(__name__)
 CORS(app)
 
 DB_PATH = "steam_flip.db"
-FEE_RATE = 0.15
-NET_RATE = 1.0 - FEE_RATE
 
 
 def get_db_connection():
@@ -216,14 +214,20 @@ def add_record():
     if unit_cost <= 0 or unit_steam_sell <= 0:
         return jsonify({"error": "单价必须大于 0"}), 400
 
-    unit_net = unit_steam_sell * NET_RATE
+    # 读取当前设置的手续费率，而不是写死的 0.15
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT steam_fee_rate FROM settings WHERE id = 1")
+    row = cur.fetchone()
+    fee_rate = row["steam_fee_rate"] if row else 0.15
+    net_rate = 1.0 - fee_rate
+
+    unit_net = unit_steam_sell * net_rate
     total_cost = unit_cost * qty
     total_steam_sell = unit_steam_sell * qty
     total_net = unit_net * qty
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    conn = get_db_connection()
-    cur = conn.cursor()
     cur.execute(
         """
         INSERT INTO history (ts, item_name, note, unit_cost, unit_steam_sell, 
