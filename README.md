@@ -13,15 +13,20 @@
 ## 项目架构
 
 ```
-111/
+steam-flip-calculator/
 ├── backend/              # 后端服务
 │   ├── app.py            # Flask API 服务
-│   └── requirements.txt  # 后端依赖
+│   ├── requirements.txt  # 后端依赖
+│   ├── start_backend.bat # 后端启动脚本
+│   └── steam_flip.db     # SQLite 数据库
 ├── frontend/             # 前端应用
 │   ├── app.py            # Flet 桌面应用
-│   └── requirements.txt  # 前端依赖
-├── steam_flip.db         # SQLite 数据库
+│   ├── requirements.txt  # 前端依赖
+│   └── start_frontend.bat# 前端启动脚本
+├── venv/                 # Python 虚拟环境
 ├── start.bat             # 一键启动脚本
+├── .gitignore            # Git 忽略配置
+├── LICENSE               # 许可证文件
 └── README.md             # 项目说明文档
 ```
 

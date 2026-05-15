@@ -2,6 +2,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 import sqlite3
 from datetime import datetime
+import requests
 
 app = Flask(__name__)
 CORS(app)
@@ -291,6 +292,38 @@ def get_stats():
         "ratio": float(ratio),
         "discount": float(discount)
     })
+
+
+@app.route("/api/exchange-rate", methods=["GET"])
+def get_exchange_rate():
+    base = request.args.get("base", "CNY")
+    target = request.args.get("target", "CNY")
+    
+    if not base or not target:
+        return jsonify({"error": "缺少参数：base 和 target"}), 400
+    
+    if base == target:
+        return jsonify({"error": "买入货币和卖出货币相同，无需汇率"}), 400
+    
+    try:
+        url = f"https://api.frankfurter.dev/v1/latest?base={base}&symbols={target}"
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        
+        if target not in data.get("rates", {}):
+            return jsonify({"error": f"无法获取 {base} 到 {target} 的汇率"}), 400
+        
+        rate = round(data["rates"][target], 4)
+        return jsonify({
+            "base": base,
+            "target": target,
+            "rate": rate
+        })
+    except requests.exceptions.RequestException as e:
+        return jsonify({"error": f"获取汇率失败：{str(e)}"}), 500
+    except Exception as e:
+        return jsonify({"error": f"服务器错误：{str(e)}"}), 500
 
 
 if __name__ == "__main__":

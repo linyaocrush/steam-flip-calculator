@@ -520,7 +520,39 @@ def main(page: ft.Page):
             width=150,
         )
 
-        def update_exchange_label(e):
+        def fetch_exchange_rate(_):
+            """获取实时汇率（调用后端API）"""
+            buy_code = tf_buy_currency.value or "CNY"
+            sell_code = tf_sell_currency.value or "CNY"
+            
+            if buy_code == sell_code:
+                snack.content = ft.Text("买入货币和卖出货币相同，无需汇率")
+                snack.open = True
+                page.update()
+                return
+
+            snack.content = ft.Text("正在获取汇率...")
+            snack.open = True
+            page.update()
+
+            data, status = api_get(f"/exchange-rate?base={buy_code}&target={sell_code}")
+            if status == 200 and "rate" in data:
+                tf_exchange_rate.value = str(data["rate"])
+                snack.content = ft.Text(f"汇率获取成功：{buy_code} -> {sell_code} = {data['rate']}")
+            else:
+                snack.content = ft.Text(data.get("error", "汇率获取失败"))
+            snack.open = True
+            page.update()
+
+        btn_fetch_rate = ft.ElevatedButton(
+            "获取汇率",
+            icon=ft.Icons.DOWNLOAD_OUTLINED,
+            on_click=fetch_exchange_rate,
+            width=120,
+        )
+
+        def update_exchange_label(_=None):
+            """实时更新汇率标签，不与后端交互"""
             buy_code = tf_buy_currency.value if tf_buy_currency.value else "CNY"
             sell_code = tf_sell_currency.value if tf_sell_currency.value else "CNY"
             tf_exchange_rate.label = f"汇率（{buy_code} -> {sell_code}）"
@@ -600,7 +632,7 @@ def main(page: ft.Page):
                                 spacing=14,
                                 controls=[
                                     ft.Row([tf_buy_currency, tf_sell_currency], spacing=12),
-                                    ft.Row([tf_exchange_rate, tf_fee_rate], spacing=12),
+                                    ft.Row([tf_exchange_rate, btn_fetch_rate, tf_fee_rate], spacing=12),
                                 ],
                             ),
                         ),
