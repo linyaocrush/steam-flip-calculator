@@ -40,7 +40,7 @@
 
 ```bash
 # 进入项目目录
-cd 111
+cd steam-flip-calculator
 
 # 创建虚拟环境（可选但推荐）
 python -m venv venv
