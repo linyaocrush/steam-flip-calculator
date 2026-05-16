@@ -428,31 +428,23 @@ def get_stats():
         cur = conn.cursor()
         
         # 获取当前设置
-        cur.execute("SELECT my_currency, my_currency_symbol, exchange_rate, sell_currency FROM settings WHERE id = 1")
+        cur.execute("SELECT my_currency, my_currency_symbol FROM settings WHERE id = 1")
         settings_row = cur.fetchone()
         current_my_currency = settings_row["my_currency"] if settings_row else "CNY"
         current_my_currency_symbol = settings_row["my_currency_symbol"] if settings_row else "¥"
-        current_exchange_rate = settings_row["exchange_rate"] if settings_row else 1.0
-        current_sell_currency = settings_row["sell_currency"] if settings_row else "CNY"
         
-        # 查询原始金额（按售出货币）
+        # 查询已经转换为我的货币的金额
         cur.execute(
             """
             SELECT
-                COALESCE(SUM(total_cost), 0),
-                COALESCE(SUM(total_net), 0),
-                COALESCE(SUM(total_steam_sell), 0),
+                COALESCE(SUM(total_cost_in_my_currency), 0),
+                COALESCE(SUM(total_net_in_my_currency), 0),
+                COALESCE(SUM(total_steam_sell_in_my_currency), 0),
                 COALESCE(SUM(qty), 0)
             FROM history
             """
         )
         total_cost, total_net, total_steam_sell, total_qty = cur.fetchone()
-        
-        # 根据当前设置转换为我的货币
-        if current_sell_currency != current_my_currency:
-            total_cost = total_cost * current_exchange_rate
-            total_net = total_net * current_exchange_rate
-            total_steam_sell = total_steam_sell * current_exchange_rate
 
     ratio = (total_cost / total_net) if total_net > 0 else 0.0
     discount = (1.0 - ratio) if total_net > 0 else 0.0
