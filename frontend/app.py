@@ -74,7 +74,7 @@ def main(page: ft.Page):
         snack = ft.SnackBar(content=ft.Text(""))
         page.snack_bar = snack
 
-        def on_add_to_history(tf_item, tf_note, tf_cost, tf_steam_sell, tf_qty, discount=0.0):
+        def on_add_to_history(tf_item, tf_note, tf_cost, tf_steam_sell, tf_qty, record_data=None):
             item_name = (tf_item.value or "").strip()
             if not item_name:
                 snack.content = ft.Text(t("error_empty_item"))
@@ -93,14 +93,29 @@ def main(page: ft.Page):
                 page.update()
                 return
 
-            data, status = api_post("/records", {
+            # 使用前端计算好的数据，如果没有则使用默认值
+            payload = {
                 "item_name": item_name,
                 "note": note,
                 "unit_cost": unit_cost,
                 "unit_steam_sell": unit_sell,
                 "qty": qty,
-                "discount": discount
-            })
+            }
+            
+            # 添加前端计算好的数据
+            if record_data:
+                payload.update({
+                    "discount": record_data.get("discount", 0.0),
+                    "unit_net": record_data.get("unit_net", 0.0),
+                    "total_cost": record_data.get("total_cost", 0.0),
+                    "total_net": record_data.get("total_net", 0.0),
+                    "total_steam_sell": record_data.get("total_steam_sell", 0.0),
+                    "total_cost_in_my_currency": record_data.get("total_cost_in_my_currency", 0.0),
+                    "total_net_in_my_currency": record_data.get("total_net_in_my_currency", 0.0),
+                    "total_steam_sell_in_my_currency": record_data.get("total_steam_sell_in_my_currency", 0.0),
+                })
+
+            data, status = api_post("/records", payload)
 
             if status == 201:
                 snack.content = ft.Text(t("save_success"))

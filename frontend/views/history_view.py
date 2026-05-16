@@ -58,7 +58,8 @@ def create_history_view(settings, snack, t):
                 ft.DataCell(ft.Text(f"{sell_currency_symbol} {money(r['unit_steam_sell'])}")),
                 ft.DataCell(ft.Text(f"{sell_currency_symbol} {money(r['unit_net'])}")),
                 ft.DataCell(ft.Text(f"{buy_currency_symbol} {money(r['total_cost'])}")),
-                ft.DataCell(ft.Text(f"{my_currency_symbol} {money(total_net_in_my)}")),
+            # 到手金额使用售出货币符号，与计算器页面保持一致
+            ft.DataCell(ft.Text(f"{sell_currency_symbol} {money(r['total_net'])}")),
                 ft.DataCell(ft.Text(pct(discount))),
                 ft.DataCell(ft.IconButton(icon=ft.Icons.DELETE_OUTLINE, tooltip=t("delete"), on_click=do_delete)),
             ]

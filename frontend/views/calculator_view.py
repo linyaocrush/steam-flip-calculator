@@ -128,7 +128,7 @@ def create_calculator_view(settings, on_add_to_history, t):
     tf_target_amount.on_change = calc_target_qty
 
     def add_record_with_discount():
-        # 计算当前的折扣值并传递给 on_add_to_history
+        # 计算当前的所有数据并传递给 on_add_to_history
         unit_cost = safe_float(tf_cost.value)
         unit_sell = safe_float(tf_steam_sell.value)
         qty = safe_int(tf_qty.value)
@@ -143,8 +143,19 @@ def create_calculator_view(settings, on_add_to_history, t):
             settings["steam_fee_rate"],
         )
         
-        # 传递计算好的折扣值
-        on_add_to_history(tf_item, tf_note, tf_cost, tf_steam_sell, tf_qty, data['discount'])
+        # 传递所有计算好的数据
+        record_data = {
+            "discount": data['discount'],
+            "unit_net": data['unit_net'],
+            "total_cost": data['total_cost'],
+            "total_net": data['total_net'],
+            "total_steam_sell": data['total_steam_sell'],
+            "total_cost_in_my_currency": data.get('total_cost_in_my_currency', data['total_cost']),
+            "total_net_in_my_currency": data.get('total_net_in_my_currency', data['total_net']),
+            "total_steam_sell_in_my_currency": data.get('total_steam_sell_in_my_currency', data['total_steam_sell']),
+        }
+        
+        on_add_to_history(tf_item, tf_note, tf_cost, tf_steam_sell, tf_qty, record_data)
 
     def kv_row(k: str, v: ft.Control):
         return ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text(k), v])

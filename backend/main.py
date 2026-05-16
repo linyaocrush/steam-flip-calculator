@@ -120,6 +120,20 @@ class RecordRequest(BaseModel):
     unit_steam_sell: float = Field(..., description="Steam 售价单价")
     qty: int = Field(default=1, description="数量")
     discount: float = Field(default=0.0, description="折扣值（从计算器页面传入）")
+    unit_net: float = Field(..., description="净单价")
+    total_cost: float = Field(..., description="总成本")
+    total_net: float = Field(..., description="总净收入")
+    total_steam_sell: float = Field(..., description="总Steam售价")
+    total_cost_in_my_currency: float = Field(..., description="总成本（我的货币）")
+    total_net_in_my_currency: float = Field(..., description="总净收入（我的货币）")
+    total_steam_sell_in_my_currency: float = Field(..., description="总Steam售价（我的货币）")
+    unit_net: float = Field(default=0.0, description="到手单价（从计算器页面传入）")
+    total_cost: float = Field(default=0.0, description="总成本（从计算器页面传入）")
+    total_net: float = Field(default=0.0, description="总到手（从计算器页面传入）")
+    total_steam_sell: float = Field(default=0.0, description="总售价（从计算器页面传入）")
+    total_cost_in_my_currency: float = Field(default=0.0, description="转换后的总成本（从计算器页面传入）")
+    total_net_in_my_currency: float = Field(default=0.0, description="转换后的总到手（从计算器页面传入）")
+    total_steam_sell_in_my_currency: float = Field(default=0.0, description="转换后的总售价（从计算器页面传入）")
 
 class RecordResponse(BaseModel):
     id: int
@@ -328,7 +342,17 @@ def add_record(data: RecordRequest):
     unit_cost = data.unit_cost
     unit_steam_sell = data.unit_steam_sell
     qty = data.qty
-    discount = data.discount  # 直接使用前端传入的折扣值
+    discount = data.discount
+    
+    # 直接使用前端传入的计算结果
+    unit_net = data.unit_net
+    total_cost = data.total_cost if data.total_cost > 0 else (unit_cost * qty)
+    total_net = data.total_net if data.total_net > 0 else (unit_net * qty)
+    total_steam_sell = data.total_steam_sell if data.total_steam_sell > 0 else (unit_steam_sell * qty)
+    
+    total_cost_in_my_currency = data.total_cost_in_my_currency
+    total_net_in_my_currency = data.total_net_in_my_currency
+    total_steam_sell_in_my_currency = data.total_steam_sell_in_my_currency
 
     if not item_name:
         raise HTTPException(status_code=400, detail="请填写物品名称")
@@ -337,31 +361,17 @@ def add_record(data: RecordRequest):
 
     with get_db() as conn:
         cur = conn.cursor()
-        cur.execute("SELECT steam_fee_rate, sell_currency, sell_currency_symbol, buy_currency, buy_currency_symbol, exchange_rate, my_currency, my_currency_symbol FROM settings WHERE id = 1")
+        cur.execute("SELECT sell_currency, sell_currency_symbol, buy_currency, buy_currency_symbol, my_currency, my_currency_symbol, exchange_rate FROM settings WHERE id = 1")
         row = cur.fetchone()
-        fee_rate = row["steam_fee_rate"] if row else 0.15
         sell_currency = row["sell_currency"] if row else "CNY"
         sell_currency_symbol = row["sell_currency_symbol"] if row else "¥"
         buy_currency = row["buy_currency"] if row else "CNY"
         buy_currency_symbol = row["buy_currency_symbol"] if row else "¥"
-        exchange_rate = row["exchange_rate"] if row else 1.0
         my_currency = row["my_currency"] if row else "CNY"
         my_currency_symbol = row["my_currency_symbol"] if row else "¥"
+        exchange_rate = row["exchange_rate"] if row else 1.0
         
-        net_rate = 1.0 - fee_rate
-
-        unit_net = unit_steam_sell * net_rate
-        total_cost = unit_cost * qty
-        total_steam_sell = unit_steam_sell * qty
-        total_net = unit_net * qty
         ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
-        total_cost_in_my_currency = total_cost * exchange_rate
-        total_net_in_my_currency = total_net * exchange_rate
-        total_steam_sell_in_my_currency = total_steam_sell * exchange_rate
-        
-        # 直接使用前端传入的折扣值，不再重新计算
-        # discount = data.discount  # 已在开头获取
 
         cur.execute(
             """
