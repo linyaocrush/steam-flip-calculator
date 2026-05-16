@@ -1,19 +1,111 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import sqlite3
+import threading
+import time
 from datetime import datetime
 import requests
+from contextlib import AbstractContextManager
 
 app = Flask(__name__)
 CORS(app)
 
 DB_PATH = "steam_flip.db"
 
+# 内存缓存机制
+_settings_cache = {
+    "data": None,
+    "timestamp": 0,
+    "ttl": 5  # 5秒缓存时间
+}
+
+_stats_cache = {
+    "data": None,
+    "timestamp": 0,
+    "ttl": 5   # 5秒缓存时间
+}
+
+# 缓存清除函数
+def invalidate_settings_cache():
+    _settings_cache["data"] = None
+    _settings_cache["timestamp"] = 0
+
+def invalidate_stats_cache():
+    _stats_cache["data"] = None
+    _stats_cache["timestamp"] = 0
+
+def check_cache_valid(cache_entry):
+    """检查缓存是否有效"""
+    if cache_entry["data"] is None:
+        return False
+    elapsed = time.time() - cache_entry["timestamp"]
+    return elapsed < cache_entry["ttl"]
+
+
+# 线程本地存储 - 每个线程有自己的数据库连接
+_thread_local_db = threading.local()
+
+
+class DatabaseConnection:
+    """数据库连接上下文管理器，用于连接池管理"""
+
+    def __enter__(self):
+        self.conn = get_db_connection()
+        return self.conn
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # 注意：不在这里关闭连接，连接会被线程复用
+        # 只提交事务，如果发生异常则回滚
+        if exc_type is None:
+            self.conn.commit()
+        else:
+            self.conn.rollback()
+
+
+class ThreadLocalDatabaseConnection(AbstractContextManager):
+    """线程本地数据库连接管理器"""
+
+    def __enter__(self):
+        self.conn = get_db_connection()
+        return self.conn
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is None:
+            self.conn.commit()
+        else:
+            self.conn.rollback()
+
 
 def get_db_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    """获取数据库连接，使用线程本地存储实现连接池"""
+    conn = getattr(_thread_local_db, 'connection', None)
+    if conn is None:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        _thread_local_db.connection = conn
     return conn
+
+
+def close_db_connection(e=None):
+    """关闭数据库连接（在请求结束时调用）"""
+    conn = getattr(_thread_local_db, 'connection', None)
+    if conn is not None:
+        conn.close()
+        _thread_local_db.connection = None
+
+
+def with_db_transaction(func):
+    """数据库事务装饰器"""
+    def wrapper(*args, **kwargs):
+        conn = get_db_connection()
+        try:
+            result = func(conn, *args, **kwargs)
+            conn.commit()
+            return result
+        except Exception as e:
+            conn.rollback()
+            raise e
+    return wrapper
 
 
 def init_db():
@@ -54,6 +146,10 @@ def init_db():
         )
         """
     )
+
+    # 创建 history 表索引以提升查询性能
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_history_id_desc ON history(id DESC)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_history_ts_desc ON history(ts DESC)")
     cur.execute("PRAGMA table_info(settings)")
     columns = [col[1] for col in cur.fetchall()]
     if "theme_mode" not in columns:
@@ -74,6 +170,13 @@ def init_db():
 
 
 init_db()
+
+
+# 注册请求生命周期钩子
+@app.teardown_request
+def teardown_db_connection(exception=None):
+    """请求结束时关闭数据库连接"""
+    close_db_connection(exception)
 
 
 @app.route("/api/calculate", methods=["POST"])
@@ -139,7 +242,6 @@ def get_exchange_rate_cached(base, target, force_refresh=False):
             now = datetime.now()
             diff_hours = (now - cached_datetime).total_seconds() / 3600
             if diff_hours < 12:
-                conn.close()
                 return cached_rate, cached_time, "使用缓存"
         except Exception:
             pass
@@ -151,7 +253,6 @@ def get_exchange_rate_cached(base, target, force_refresh=False):
         data = response.json()
         
         if target not in data.get("rates", {}):
-            conn.close()
             return cached_rate or 1.0, cached_time, "获取失败，使用缓存"
         
         rate = round(data["rates"][target], 4)
@@ -162,23 +263,28 @@ def get_exchange_rate_cached(base, target, force_refresh=False):
             (rate, updated_at)
         )
         conn.commit()
-        conn.close()
+
+        # 汇率变更后清除设置缓存（因为汇率是设置的一部分）
+        invalidate_settings_cache()
+
         return rate, updated_at, "获取成功"
     except Exception as e:
-        conn.close()
         return cached_rate or 1.0, cached_time, f"获取失败: {str(e)}"
 
 
 @app.route("/api/settings", methods=["GET"])
 def get_settings():
+    # 检查缓存是否有效
+    if check_cache_valid(_settings_cache):
+        return _settings_cache["data"]
+
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("SELECT * FROM settings WHERE id = 1")
     row = cur.fetchone()
-    conn.close()
-    
+
     if row:
-        return jsonify({
+        response_data = {
             "buy_currency": row["buy_currency"],
             "buy_currency_symbol": row["buy_currency_symbol"],
             "sell_currency": row["sell_currency"],
@@ -190,20 +296,27 @@ def get_settings():
             "my_currency_symbol": row["my_currency_symbol"],
             "exchange_rate_updated_at": row["exchange_rate_updated_at"],
             "language": row["language"]
-        })
-    return jsonify({
-        "buy_currency": "CNY",
-        "buy_currency_symbol": "¥",
-        "sell_currency": "CNY",
-        "sell_currency_symbol": "¥",
-        "exchange_rate": 1.0,
-        "steam_fee_rate": 0.15,
-        "theme_mode": "LIGHT",
-        "my_currency": "CNY",
-        "my_currency_symbol": "¥",
-        "exchange_rate_updated_at": None,
-        "language": "zh"
-    })
+        }
+    else:
+        response_data = {
+            "buy_currency": "CNY",
+            "buy_currency_symbol": "¥",
+            "sell_currency": "CNY",
+            "sell_currency_symbol": "¥",
+            "exchange_rate": 1.0,
+            "steam_fee_rate": 0.15,
+            "theme_mode": "LIGHT",
+            "my_currency": "CNY",
+            "my_currency_symbol": "¥",
+            "exchange_rate_updated_at": None,
+            "language": "zh"
+        }
+
+    # 缓存响应结果
+    _settings_cache["data"] = jsonify(response_data)
+    _settings_cache["timestamp"] = time.time()
+
+    return _settings_cache["data"]
 
 
 @app.route("/api/settings", methods=["POST"])
@@ -238,7 +351,6 @@ def save_settings():
     cur.execute("SELECT exchange_rate_updated_at FROM settings WHERE id = 1")
     row = cur.fetchone()
     current_updated_at = row["exchange_rate_updated_at"] if row else None
-    conn.close()
 
     auto_fetch_rate = False
     rate_source = "用户输入"
@@ -252,7 +364,7 @@ def save_settings():
     cur = conn.cursor()
     cur.execute(
         """
-        UPDATE settings SET 
+        UPDATE settings SET
             buy_currency = ?,
             buy_currency_symbol = ?,
             sell_currency = ?,
@@ -266,12 +378,15 @@ def save_settings():
             language = ?
         WHERE id = 1
         """,
-        (buy_currency, buy_currency_symbol, sell_currency, 
-         sell_currency_symbol, exchange_rate, steam_fee_rate, 
+        (buy_currency, buy_currency_symbol, sell_currency,
+         sell_currency_symbol, exchange_rate, steam_fee_rate,
          theme_mode, my_currency, my_currency_symbol, updated_at, language)
     )
     conn.commit()
-    conn.close()
+
+    # 设置变更后清除缓存
+    invalidate_settings_cache()
+    invalidate_stats_cache()  # 设置变更可能影响历史记录的统计计算
 
     return jsonify({
         "message": "设置已保存",
@@ -284,19 +399,25 @@ def save_settings():
 
 @app.route("/api/records", methods=["GET"])
 def get_records():
+    """优化查询：只选择前端需要的字段，减少数据传输量"""
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute(
         """
-        SELECT id, ts, item_name, COALESCE(note, ''), unit_cost, unit_steam_sell, 
-               qty, unit_net, total_cost, total_steam_sell, total_net
-        FROM history
-        ORDER BY id DESC
-        LIMIT 500
+        SELECT id, ts, item_name, note, unit_cost, unit_steam_sell,
+               qty, total_cost, total_net, discount
+        FROM (
+            SELECT id, ts, item_name, COALESCE(note, '') as note,
+                   unit_cost, unit_steam_sell, qty, total_cost, total_net,
+                   ROUND(100.0 * (1.0 - total_cost / total_net), 2) as discount
+            FROM history
+            ORDER BY id DESC
+            LIMIT 500
+        )
+        ORDER BY id DESC  -- 外层再次排序确保顺序正确
         """
     )
     rows = cur.fetchall()
-    conn.close()
 
     records = []
     for row in rows:
@@ -308,10 +429,9 @@ def get_records():
             "unit_cost": row["unit_cost"],
             "unit_steam_sell": row["unit_steam_sell"],
             "qty": row["qty"],
-            "unit_net": row["unit_net"],
             "total_cost": row["total_cost"],
-            "total_steam_sell": row["total_steam_sell"],
-            "total_net": row["total_net"]
+            "total_net": row["total_net"],
+            "discount_pct": row["discount"]  # 服务器计算折扣百分比，减少前端计算
         })
     return jsonify(records)
 
@@ -346,15 +466,17 @@ def add_record():
 
     cur.execute(
         """
-        INSERT INTO history (ts, item_name, note, unit_cost, unit_steam_sell, 
+        INSERT INTO history (ts, item_name, note, unit_cost, unit_steam_sell,
                             qty, unit_net, total_cost, total_steam_sell, total_net)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (ts, item_name, note, unit_cost, unit_steam_sell, qty, 
+        (ts, item_name, note, unit_cost, unit_steam_sell, qty,
          unit_net, total_cost, total_steam_sell, total_net),
     )
     conn.commit()
-    conn.close()
+
+    # 添加历史记录后清除统计缓存
+    invalidate_stats_cache()
 
     return jsonify({"message": "已记录"}), 201
 
@@ -365,7 +487,10 @@ def delete_record(record_id):
     cur = conn.cursor()
     cur.execute("DELETE FROM history WHERE id = ?", (record_id,))
     conn.commit()
-    conn.close()
+
+    # 删除历史记录后清除统计缓存
+    invalidate_stats_cache()
+
     return jsonify({"message": "已删除"}), 200
 
 
@@ -375,12 +500,19 @@ def clear_records():
     cur = conn.cursor()
     cur.execute("DELETE FROM history")
     conn.commit()
-    conn.close()
+
+    # 清空历史记录后清除统计缓存
+    invalidate_stats_cache()
+
     return jsonify({"message": "已清空全部历史"}), 200
 
 
 @app.route("/api/stats", methods=["GET"])
 def get_stats():
+    # 检查缓存是否有效
+    if check_cache_valid(_stats_cache):
+        return _stats_cache["data"]
+
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute(
@@ -394,19 +526,24 @@ def get_stats():
         """
     )
     total_cost, total_net, total_steam_sell, total_qty = cur.fetchone()
-    conn.close()
 
     ratio = (total_cost / total_net) if total_net > 0 else 0.0
     discount = (1.0 - ratio) if total_net > 0 else 0.0
 
-    return jsonify({
+    response_data = {
         "total_cost": float(total_cost),
         "total_net": float(total_net),
         "total_steam_sell": float(total_steam_sell),
         "total_qty": int(total_qty),
         "ratio": float(ratio),
         "discount": float(discount)
-    })
+    }
+
+    # 缓存响应结果
+    _stats_cache["data"] = jsonify(response_data)
+    _stats_cache["timestamp"] = time.time()
+
+    return _stats_cache["data"]
 
 
 @app.route("/api/exchange-rate", methods=["GET"])
