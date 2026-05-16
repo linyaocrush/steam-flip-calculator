@@ -26,6 +26,12 @@ TRANSLATIONS = {
         "break_even_price": "保本售卖价(单价):",
         "add_to_history": "记录到历史",
         
+        "target_amount": "目标金额",
+        "target_amount_desc": "需要的余额:",
+        "required_qty": "需要购买数量:",
+        "required_cost": "需要花费:",
+        "calculate_qty": "计算数量",
+        
         "result_title": "计算结果（按单价与数量）",
         "unit_net": "Steam 实际到账(单价):",
         "total_cost": "总花费:",
@@ -130,6 +136,12 @@ TRANSLATIONS = {
         "steam_fee": "Steam Market fixed {fee:.1f}% fee",
         "break_even_price": "Break-even Price (Unit):",
         "add_to_history": "Add to History",
+        
+        "target_amount": "Target Amount",
+        "target_amount_desc": "Required Balance:",
+        "required_qty": "Required Quantity:",
+        "required_cost": "Required Cost:",
+        "calculate_qty": "Calculate Quantity",
         
         "result_title": "Calculation Results (Per Unit & Quantity)",
         "unit_net": "Steam Net Receipt (Unit):",

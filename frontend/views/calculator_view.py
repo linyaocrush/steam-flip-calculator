@@ -35,6 +35,19 @@ def create_calculator_view(settings, on_add_to_history, t):
     out_discount = ft.Text(value="-")
     out_need_sell = ft.Text(value="-")
 
+    # 目标金额反推功能
+    tf_target_amount = ft.TextField(
+        label=t("target_amount"),
+        value="",
+        prefix=ft.Text(settings["sell_currency_symbol"]),
+        keyboard_type=ft.KeyboardType.NUMBER,
+        expand=True,
+        hint_text=t("target_amount_desc"),
+    )
+    
+    out_required_qty = ft.Text(value="-")
+    out_required_cost = ft.Text(value="-")
+
     def format_price(amount, currency_symbol, currency_code):
         my_currency = settings.get("my_currency", "CNY")
         my_symbol = settings.get("my_currency_symbol", "¥")
@@ -72,15 +85,54 @@ def create_calculator_view(settings, on_add_to_history, t):
         out_ratio.value = f"{pct(data['ratio'])} ({t('ratio_desc')})"
         out_discount.value = f"{pct(data['discount'])}"
         out_need_sell.value = f"{format_price(data['need_sell'], settings['sell_currency_symbol'], settings['sell_currency'])} ({t('unit')})"
+        
+        # 更新目标金额计算
+        calc_target_qty()
         return True
+
+    def calc_target_qty(_=None):
+        target_amount = safe_float(tf_target_amount.value)
+        unit_cost = safe_float(tf_cost.value)
+        unit_sell = safe_float(tf_steam_sell.value)
+        
+        if target_amount <= 0 or unit_cost <= 0 or unit_sell <= 0:
+            out_required_qty.value = "-"
+            out_required_cost.value = "-"
+            return
+        
+        net_rate = 1.0 - settings["steam_fee_rate"]
+        unit_net = unit_sell * net_rate
+        
+        if unit_net <= 0:
+            out_required_qty.value = "-"
+            out_required_cost.value = "-"
+            return
+        
+        required_qty = (target_amount / unit_net)
+        required_qty_ceil = int(required_qty) + (1 if required_qty % 1 > 0 else 0)
+        
+        required_cost = unit_cost * required_qty_ceil
+        
+        use_exchange = settings["buy_currency"] != settings["sell_currency"]
+        if use_exchange:
+            required_cost_display = required_cost * settings["exchange_rate"]
+        else:
+            required_cost_display = required_cost
+        
+        out_required_qty.value = f"{required_qty_ceil} {t('unit')}"
+        out_required_cost.value = format_price(required_cost_display, settings['sell_currency_symbol'], settings['sell_currency'])
 
     for t_field in (tf_cost, tf_steam_sell, tf_qty):
         t_field.on_change = recalc
+    
+    tf_target_amount.on_change = calc_target_qty
 
     def kv_row(k: str, v: ft.Control):
         return ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text(k), v])
 
     fee_percent = settings["steam_fee_rate"] * 100
+    
+    # 反推挂刀价区域
     reverse_box = ft.Container(
         width=340,
         padding=14,
@@ -93,6 +145,23 @@ def create_calculator_view(settings, on_add_to_history, t):
                 ft.Text(t("steam_fee", fee=fee_percent), size=12, opacity=0.8),
                 kv_row(t("break_even_price"), out_need_sell),
                 ft.FilledButton(t("add_to_history"), icon=ft.Icons.ADD_CIRCLE_OUTLINE, on_click=lambda _: on_add_to_history(tf_item, tf_note, tf_cost, tf_steam_sell, tf_qty)),
+            ],
+        ),
+    )
+
+    # 目标金额反推区域
+    target_box = ft.Container(
+        width=340,
+        padding=14,
+        border_radius=14,
+        bgcolor=ft.Colors.SURFACE_CONTAINER,
+        content=ft.Column(
+            spacing=10,
+            controls=[
+                ft.Text(t("target_amount_desc"), size=14, weight=ft.FontWeight.W_600),
+                tf_target_amount,
+                kv_row(t("required_qty"), out_required_qty),
+                kv_row(t("required_cost"), out_required_cost),
             ],
         ),
     )
@@ -125,7 +194,7 @@ def create_calculator_view(settings, on_add_to_history, t):
                     ft.Row([tf_item, tf_note], spacing=12),
                     ft.Row([tf_cost, tf_steam_sell, tf_qty], spacing=12),
                     ft.Divider(height=1),
-                    ft.Row([calc_result_box, reverse_box], spacing=14),
+                    ft.Row([calc_result_box, reverse_box, target_box], spacing=14),
                 ],
             ),
         ),
