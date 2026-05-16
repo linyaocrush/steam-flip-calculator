@@ -2,6 +2,10 @@
 
 一个用于计算 Steam 市场倒余额收益的工具，帮助用户快速计算在第三方平台购买物品后在 Steam 市场出售的利润。
 
+## 🎉 更新公告
+
+项目已从 **Flask** 迁移到 **FastAPI**，提供更好的性能和开发体验！
+
 ## 功能特点
 
 - 📊 **倒余额计算**：输入成本和售价，自动计算实际到手余额、折扣比例
@@ -9,32 +13,39 @@
 - 📝 **交易记录**：记录每笔交易，便于追踪历史
 - 📈 **统计汇总**：查看整体交易统计和折扣汇总
 - 🌙 **明暗主题**：支持明暗主题切换
+- 🌍 **多语言**：支持中文、英文、日文
 
 ## 项目架构
 
 ```
 steam-flip-calculator/
-├── backend/              # 后端服务
-│   ├── app.py            # Flask API 服务
+├── backend/              # 后端服务 (FastAPI)
+│   ├── main.py           # FastAPI API 服务
+│   ├── schemas.py        # Pydantic 数据模型
+│   ├── database.py       # 数据库和缓存管理
 │   ├── requirements.txt  # 后端依赖
 │   ├── start_backend.bat # 后端启动脚本
 │   └── steam_flip.db     # SQLite 数据库
-├── frontend/             # 前端应用
+├── frontend/             # 前端应用 (Flet)
 │   ├── app.py            # Flet 桌面应用
+│   ├── api.py            # API 客户端
+│   ├── calculator.py     # 计算逻辑
+│   ├── config.py         # 配置管理
+│   ├── i18n.py           # 国际化
+│   ├── utils.py          # 工具函数
 │   ├── requirements.txt  # 前端依赖
-│   └── start_frontend.bat# 前端启动脚本
-├── venv/                 # Python 虚拟环境
+│   ├── start_frontend.bat# 前端启动脚本
+│   └── views/            # 视图组件
 ├── start.bat             # 一键启动脚本
-├── .gitignore            # Git 忽略配置
-├── LICENSE               # 许可证文件
-└── README.md             # 项目说明文档
 ```
 
 ## 技术栈
 
 | 组件 | 技术 | 版本 |
 |------|------|------|
-| 后端框架 | Flask | 2.3.3 |
+| 后端框架 | FastAPI | 0.104.1 |
+| ASGI 服务器 | Uvicorn | 0.24.0 |
+| 数据验证 | Pydantic | 2.5.0 |
 | 前端框架 | Flet | 0.85.1 |
 | 数据库 | SQLite | 内置 |
 | 语言 | Python | 3.10+ |
@@ -54,8 +65,11 @@ python -m venv venv
 # Windows
 venv\Scripts\activate
 
-# 安装依赖
-pip install flask flask-cors requests flet
+# 安装后端依赖
+pip install -r backend/requirements.txt
+
+# 安装前端依赖
+pip install -r frontend/requirements.txt
 ```
 
 ### 2. 运行项目
@@ -70,13 +84,20 @@ start.bat
 **方法二：手动启动**
 
 ```bash
-# 终端1：启动后端服务
+# 终端1：启动后端服务 (FastAPI + Uvicorn)
 cd backend
-..\venv\Scripts\python.exe app.py
+..\venv\Scripts\python.exe -m uvicorn main:app --host 0.0.0.0 --port 5000 --reload
 
 # 终端2：启动前端应用（等待后端启动完成后）
 cd frontend
 ..\venv\Scripts\python.exe app.py
+```
+
+**生产环境启动**
+
+```bash
+cd backend
+python -m uvicorn main:app --host 0.0.0.0 --port 5000
 ```
 
 ## 使用说明
@@ -90,7 +111,7 @@ cd frontend
 5. **数量**：购买的数量
 
 **计算结果说明：**
-- **Steam 实际到账(单价)**：扣除 15% 手续费后的实际到手金额
+- **Steam 实际到账(单价)**：扣除手续费后的实际到手金额
 - **总花费**：购买物品的总成本
 - **总到手余额**：全部卖出后的实际到手余额
 - **倒余额比例**：成本 / 到手余额（越低越好）
@@ -112,9 +133,37 @@ cd frontend
 - 整体倒余额比例：总花费 / 总到手余额
 - 整体折扣：基于所有交易的平均折扣
 
+### 设置页面
+
+- 买入货币：第三方平台使用的货币
+- 卖出货币：Steam 市场所在区域的货币
+- 汇率：自动获取，12小时缓存
+- Steam 手续费率：可自定义（默认 15%）
+- 主题模式：浅色/深色模式
+- 语言：中文/英文/日文
+
 ## API 接口
 
-### 计算接口
+### 自动文档
+
+- **Swagger UI**: http://localhost:5000/docs
+- **ReDoc**: http://localhost:5000/redoc
+
+### 接口列表
+
+| 方法 | 路径 | 描述 |
+|------|------|------|
+| POST | /api/calculate | 计算倒余额 |
+| GET | /api/settings | 获取设置 |
+| POST | /api/settings | 保存设置 |
+| GET | /api/records | 获取历史记录 |
+| POST | /api/records | 添加记录 |
+| DELETE | /api/records/{id} | 删除记录 |
+| DELETE | /api/records | 清空记录 |
+| GET | /api/stats | 获取统计 |
+| GET | /api/exchange-rate | 获取汇率 |
+
+### 计算接口示例
 
 **POST** `/api/calculate`
 
@@ -123,7 +172,10 @@ cd frontend
 {
     "unit_cost": 70,
     "unit_steam_sell": 100,
-    "qty": 1
+    "qty": 1,
+    "use_exchange": false,
+    "exchange_rate": 1.0,
+    "fee_rate": 0.15
 }
 ```
 
@@ -140,34 +192,42 @@ cd frontend
 }
 ```
 
-### 记录接口
-
-**GET** `/api/records` - 获取所有记录
-
-**POST** `/api/records` - 添加记录
-
-**DELETE** `/api/records/{id}` - 删除单条记录
-
-**DELETE** `/api/records` - 清空所有记录
-
-### 统计接口
-
-**GET** `/api/stats` - 获取统计数据
-
 ## 计算原理
 
 ### Steam 手续费规则
-Steam 市场固定收取 15% 的手续费：
+Steam 市场收取交易手续费（默认 15%）：
 - 卖出 100 元，实际到账 85 元
-- 到手余额 = 售出价格 × 0.85
+- 到手余额 = 售出价格 × (1 - 手续费率)
 
 ### 保本价格计算
 为了确保不亏本，需要：
 ```
-保本售卖价 = 第三方成本 / 0.85
+保本售卖价 = 第三方成本 / (1 - 手续费率)
 ```
 
-示例：成本 70 元，保本价 = 70 / 0.85 ≈ 82.35 元
+示例：成本 70 元，手续费率 15%，保本价 = 70 / 0.85 ≈ 82.35 元
+
+## 迁移说明
+
+### Flask → FastAPI
+
+项目已从 Flask 迁移到 FastAPI，主要变化：
+
+| 方面 | Flask | FastAPI |
+|------|-------|---------|
+| 性能 | 同步 | 异步支持 |
+| 数据验证 | 手动 | Pydantic |
+| API 文档 | 手动 | 自动生成 |
+| 热重载 | 插件 | 内置 |
+| 类型提示 | 可选 | 强制 |
+
+### 优势
+
+- ✅ 更好的性能（异步处理）
+- ✅ 更好的类型安全（Pydantic）
+- ✅ 自动生成 API 文档
+- ✅ 更好的开发体验
+- ✅ 完全兼容现有前端
 
 ## 注意事项
 
@@ -175,6 +235,7 @@ Steam 市场固定收取 15% 的手续费：
 2. 数据库文件 `steam_flip.db` 会自动创建
 3. 建议定期备份数据库文件
 4. 本工具仅供参考，实际收益可能因市场波动而变化
+5. 端口 5000 需要保持空闲
 
 ## 许可证
 
