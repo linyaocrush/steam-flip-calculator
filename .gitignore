@@ -181,3 +181,4 @@ cython_debug/
 .cursorindexingignore
 CLAUDE.md
 steam_flip.db
+/.claude
