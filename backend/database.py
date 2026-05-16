@@ -48,7 +48,15 @@ def init_db():
             unit_net REAL NOT NULL,
             total_cost REAL NOT NULL,
             total_steam_sell REAL NOT NULL,
-            total_net REAL NOT NULL
+            total_net REAL NOT NULL,
+            sell_currency TEXT NOT NULL DEFAULT 'CNY',
+            sell_currency_symbol TEXT NOT NULL DEFAULT '¥',
+            exchange_rate REAL NOT NULL DEFAULT 1.0,
+            my_currency TEXT NOT NULL DEFAULT 'CNY',
+            my_currency_symbol TEXT NOT NULL DEFAULT '¥',
+            total_cost_in_my_currency REAL NOT NULL DEFAULT 0,
+            total_net_in_my_currency REAL NOT NULL DEFAULT 0,
+            total_steam_sell_in_my_currency REAL NOT NULL DEFAULT 0
         )
         """
     )
@@ -73,6 +81,27 @@ def init_db():
 
     cur.execute("CREATE INDEX IF NOT EXISTS idx_history_id_desc ON history(id DESC)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_history_ts_desc ON history(ts DESC)")
+    
+    # 升级历史表，添加货币相关字段
+    cur.execute("PRAGMA table_info(history)")
+    history_columns = [col[1] for col in cur.fetchall()]
+    if "sell_currency" not in history_columns:
+        cur.execute("ALTER TABLE history ADD COLUMN sell_currency TEXT NOT NULL DEFAULT 'CNY'")
+    if "sell_currency_symbol" not in history_columns:
+        cur.execute("ALTER TABLE history ADD COLUMN sell_currency_symbol TEXT NOT NULL DEFAULT '¥'")
+    if "exchange_rate" not in history_columns:
+        cur.execute("ALTER TABLE history ADD COLUMN exchange_rate REAL NOT NULL DEFAULT 1.0")
+    if "my_currency" not in history_columns:
+        cur.execute("ALTER TABLE history ADD COLUMN my_currency TEXT NOT NULL DEFAULT 'CNY'")
+    if "my_currency_symbol" not in history_columns:
+        cur.execute("ALTER TABLE history ADD COLUMN my_currency_symbol TEXT NOT NULL DEFAULT '¥'")
+    if "total_cost_in_my_currency" not in history_columns:
+        cur.execute("ALTER TABLE history ADD COLUMN total_cost_in_my_currency REAL NOT NULL DEFAULT 0")
+    if "total_net_in_my_currency" not in history_columns:
+        cur.execute("ALTER TABLE history ADD COLUMN total_net_in_my_currency REAL NOT NULL DEFAULT 0")
+    if "total_steam_sell_in_my_currency" not in history_columns:
+        cur.execute("ALTER TABLE history ADD COLUMN total_steam_sell_in_my_currency REAL NOT NULL DEFAULT 0")
+    
     cur.execute("PRAGMA table_info(settings)")
     columns = [col[1] for col in cur.fetchall()]
     if "theme_mode" not in columns:

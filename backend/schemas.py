@@ -76,6 +76,8 @@ class StatsResponse(BaseModel):
     total_qty: int
     ratio: float
     discount: float
+    my_currency: str = Field(default="CNY", description="我的货币代码")
+    my_currency_symbol: str = Field(default="¥", description="我的货币符号")
 
 
 class ErrorResponse(BaseModel):

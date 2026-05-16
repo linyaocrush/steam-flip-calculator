@@ -122,8 +122,9 @@ def main(page: ft.Page):
         row_for_record = history["row_for_record"]
 
         def refresh_history():
-            records, status = api_get("/records")
+            data, status = api_get("/records")
             if status == 200:
+                records = data.get("records", [])
                 dt.rows = [row_for_record(r, refresh_history) for r in records]
             else:
                 dt.rows = []

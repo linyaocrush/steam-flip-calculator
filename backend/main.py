@@ -1,27 +1,13 @@
-from fastapi import FastAPI, HTTPException, status, Request
+from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from fastapi.exceptions import RequestValidationError
-from typing import List
-import requests
+from pydantic import BaseModel, Field
+from contextlib import contextmanager
+import sqlite3
+import threading
+import time
 from datetime import datetime
 
-from schemas import (
-    CalculateRequest, CalculateResponse,
-    SettingsRequest, SettingsResponse, SettingsSaveResponse,
-    RecordRequest, RecordResponse,
-    StatsResponse, ErrorResponse, ExchangeRateResponse
-)
-from database import (
-    get_db, init_db,
-    _settings_cache, _stats_cache,
-    invalidate_settings_cache, invalidate_stats_cache,
-    get_exchange_rate_cached
-)
-
-
 app = FastAPI()
-
 
 app.add_middleware(
     CORSMiddleware,
@@ -31,38 +17,136 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+DB_PATH = "steam_flip.db"
+_thread_local_db = threading.local()
 
-@app.exception_handler(HTTPException)
-async def http_exception_handler(request: Request, exc: HTTPException):
-    if isinstance(exc.detail, dict) and "error" in exc.detail:
-        return JSONResponse(
-            status_code=exc.status_code,
-            content={"error": exc.detail["error"]}
-        )
-    elif isinstance(exc.detail, str):
-        return JSONResponse(
-            status_code=exc.status_code,
-            content={"error": exc.detail}
-        )
-    else:
-        return JSONResponse(
-            status_code=exc.status_code,
-            content={"error": str(exc.detail)}
-        )
+def get_db_connection():
+    conn = getattr(_thread_local_db, 'connection', None)
+    if conn is None:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        _thread_local_db.connection = conn
+    return conn
 
+@contextmanager
+def get_db():
+    conn = get_db_connection()
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
 
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    return JSONResponse(
-        status_code=422,
-        content={"error": f"请求参数验证失败: {str(exc.errors())}"}
-    )
+class CacheManager:
+    def __init__(self, ttl: int = 5):
+        self._cache = {
+            "data": None,
+            "timestamp": 0,
+            "ttl": ttl
+        }
 
+    def is_valid(self) -> bool:
+        if self._cache["data"] is None:
+            return False
+        elapsed = time.time() - self._cache["timestamp"]
+        return elapsed < self._cache["ttl"]
 
-@app.on_event("startup")
-def startup_event():
-    init_db()
+    def get(self):
+        return self._cache["data"]
 
+    def set(self, data):
+        self._cache["data"] = data
+        self._cache["timestamp"] = time.time()
+
+    def invalidate(self):
+        self._cache["data"] = None
+        self._cache["timestamp"] = 0
+
+_settings_cache = CacheManager(ttl=5)
+_stats_cache = CacheManager(ttl=5)
+
+def invalidate_settings_cache():
+    _settings_cache.invalidate()
+
+def invalidate_stats_cache():
+    _stats_cache.invalidate()
+
+class CalculateRequest(BaseModel):
+    unit_cost: float = Field(default=0.0, description="第三方成本（单价）")
+    unit_steam_sell: float = Field(default=0.0, description="Steam 售出金额（单价）")
+    qty: int = Field(default=1, description="数量")
+    use_exchange: bool = Field(default=False, description="是否使用汇率转换")
+    exchange_rate: float = Field(default=1.0, description="汇率")
+    fee_rate: float = Field(default=0.15, description="手续费率")
+
+class CalculateResponse(BaseModel):
+    unit_net: float
+    total_cost: float
+    total_net: float
+    total_steam_sell: float
+    ratio: float
+    discount: float
+    need_sell: float
+
+class SettingsRequest(BaseModel):
+    buy_currency: str = Field(default="CNY", description="买入货币")
+    buy_currency_symbol: str = Field(default="¥", description="买入货币符号")
+    sell_currency: str = Field(default="CNY", description="卖出货币")
+    sell_currency_symbol: str = Field(default="¥", description="卖出货币符号")
+    exchange_rate: float = Field(default=1.0, description="汇率")
+    steam_fee_rate: float = Field(default=0.15, description="Steam 手续费率")
+    theme_mode: str = Field(default="LIGHT", description="主题模式")
+    my_currency: str = Field(default="CNY", description="我的货币")
+    my_currency_symbol: str = Field(default="¥", description="我的货币符号")
+    language: str = Field(default="zh", description="语言")
+
+class SettingsResponse(BaseModel):
+    buy_currency: str
+    buy_currency_symbol: str
+    sell_currency: str
+    sell_currency_symbol: str
+    exchange_rate: float
+    steam_fee_rate: float
+    theme_mode: str
+    my_currency: str
+    my_currency_symbol: str
+    language: str
+
+class RecordRequest(BaseModel):
+    item_name: str = Field(..., description="物品名称")
+    note: str = Field(default="", description="备注")
+    unit_cost: float = Field(..., description="成本单价")
+    unit_steam_sell: float = Field(..., description="Steam 售价单价")
+    qty: int = Field(default=1, description="数量")
+
+class RecordResponse(BaseModel):
+    id: int
+    ts: str
+    item_name: str
+    note: str
+    unit_cost: float
+    unit_steam_sell: float
+    qty: int
+    unit_net: float
+    total_cost: float
+    total_net: float
+    discount: float
+
+class StatsResponse(BaseModel):
+    total_cost: float
+    total_net: float
+    total_steam_sell: float
+    total_qty: int
+    ratio: float
+    discount: float
+    my_currency: str = Field(default="CNY", description="我的货币代码")
+    my_currency_symbol: str = Field(default="¥", description="我的货币符号")
+
+class ExchangeRateResponse(BaseModel):
+    rate: float
+    updated_at: str
+    message: str
 
 @app.post("/api/calculate", response_model=CalculateResponse)
 def calculate(data: CalculateRequest):
@@ -102,7 +186,6 @@ def calculate(data: CalculateRequest):
         "need_sell": need_sell
     }
 
-
 @app.get("/api/settings", response_model=SettingsResponse)
 def get_settings():
     if _settings_cache.is_valid():
@@ -112,7 +195,7 @@ def get_settings():
         cur = conn.cursor()
         cur.execute("SELECT * FROM settings WHERE id = 1")
         row = cur.fetchone()
-
+        
         if row:
             response_data = {
                 "buy_currency": row["buy_currency"],
@@ -124,7 +207,6 @@ def get_settings():
                 "theme_mode": row["theme_mode"],
                 "my_currency": row["my_currency"],
                 "my_currency_symbol": row["my_currency_symbol"],
-                "exchange_rate_updated_at": row["exchange_rate_updated_at"],
                 "language": row["language"]
             }
         else:
@@ -138,90 +220,67 @@ def get_settings():
                 "theme_mode": "LIGHT",
                 "my_currency": "CNY",
                 "my_currency_symbol": "¥",
-                "exchange_rate_updated_at": None,
                 "language": "zh"
             }
 
     _settings_cache.set(response_data)
     return response_data
 
-
-@app.post("/api/settings", response_model=SettingsSaveResponse)
+@app.post("/api/settings", response_model=SettingsResponse)
 def save_settings(data: SettingsRequest):
-    buy_currency = data.buy_currency.strip()
-    buy_currency_symbol = data.buy_currency_symbol.strip()
-    sell_currency = data.sell_currency.strip()
-    sell_currency_symbol = data.sell_currency_symbol.strip()
-    exchange_rate = data.exchange_rate
-    steam_fee_rate = data.steam_fee_rate
-    theme_mode = data.theme_mode.strip()
-    my_currency = data.my_currency.strip()
-    my_currency_symbol = data.my_currency_symbol.strip()
-    language = data.language.strip()
-
-    if not buy_currency:
-        raise HTTPException(status_code=400, detail="买入货币不能为空")
-    if not sell_currency:
-        raise HTTPException(status_code=400, detail="卖出货币不能为空")
-    if steam_fee_rate < 0 or steam_fee_rate >= 1:
-        raise HTTPException(status_code=400, detail="手续费率必须在 0 到 1 之间")
-    if theme_mode not in ["LIGHT", "DARK"]:
-        raise HTTPException(status_code=400, detail="主题模式必须是 LIGHT 或 DARK")
-    if not my_currency:
-        raise HTTPException(status_code=400, detail="我的货币不能为空")
-    if language not in ["zh", "en", "ja"]:
-        raise HTTPException(status_code=400, detail="语言设置必须是 zh、en 或 ja")
-
-    with get_db() as conn:
-        cur = conn.cursor()
-        cur.execute("SELECT exchange_rate_updated_at FROM settings WHERE id = 1")
-        row = cur.fetchone()
-        current_updated_at = row["exchange_rate_updated_at"] if row else None
-
-    auto_fetch_rate = False
-    rate_source = "用户输入"
-    updated_at = current_updated_at
-
-    if buy_currency == sell_currency:
-        exchange_rate = 1.0
-        updated_at = None
+    if data.buy_currency == data.sell_currency:
+        raise HTTPException(status_code=400, detail="买入货币和卖出货币相同，无需汇率")
+    if data.steam_fee_rate < 0 or data.steam_fee_rate > 1:
+        raise HTTPException(status_code=400, detail="手续费率必须在 0-100% 之间")
 
     with get_db() as conn:
         cur = conn.cursor()
         cur.execute(
             """
-            UPDATE settings SET
-                buy_currency = ?,
-                buy_currency_symbol = ?,
-                sell_currency = ?,
-                sell_currency_symbol = ?,
-                exchange_rate = ?,
+            UPDATE settings SET 
+                buy_currency = ?, 
+                buy_currency_symbol = ?, 
+                sell_currency = ?, 
+                sell_currency_symbol = ?, 
+                exchange_rate = ?, 
                 steam_fee_rate = ?,
                 theme_mode = ?,
                 my_currency = ?,
                 my_currency_symbol = ?,
-                exchange_rate_updated_at = ?,
                 language = ?
             WHERE id = 1
             """,
-            (buy_currency, buy_currency_symbol, sell_currency,
-             sell_currency_symbol, exchange_rate, steam_fee_rate,
-             theme_mode, my_currency, my_currency_symbol, updated_at, language)
+            (
+                data.buy_currency,
+                data.buy_currency_symbol,
+                data.sell_currency,
+                data.sell_currency_symbol,
+                data.exchange_rate,
+                data.steam_fee_rate,
+                data.theme_mode,
+                data.my_currency,
+                data.my_currency_symbol,
+                data.language
+            )
         )
 
     invalidate_settings_cache()
     invalidate_stats_cache()
 
     return {
-        "message": "设置已保存",
-        "auto_fetch_rate": auto_fetch_rate,
-        "rate_source": rate_source,
-        "exchange_rate": exchange_rate,
-        "exchange_rate_updated_at": updated_at
+        "buy_currency": data.buy_currency,
+        "buy_currency_symbol": data.buy_currency_symbol,
+        "sell_currency": data.sell_currency,
+        "sell_currency_symbol": data.sell_currency_symbol,
+        "exchange_rate": data.exchange_rate,
+        "steam_fee_rate": data.steam_fee_rate,
+        "theme_mode": data.theme_mode,
+        "my_currency": data.my_currency,
+        "my_currency_symbol": data.my_currency_symbol,
+        "language": data.language
     }
 
-
-@app.get("/api/records", response_model=List[RecordResponse])
+@app.get("/api/records")
 def get_records():
     with get_db() as conn:
         cur = conn.cursor()
@@ -255,12 +314,12 @@ def get_records():
             "unit_net": row["unit_net"],
             "total_cost": row["total_cost"],
             "total_net": row["total_net"],
-            "discount_pct": row["discount"]
+            "discount": row["discount"]
         })
-    return records
 
+    return {"records": records}
 
-@app.post("/api/records", status_code=status.HTTP_201_CREATED)
+@app.post("/api/records")
 def add_record(data: RecordRequest):
     item_name = data.item_name.strip()
     note = data.note.strip()
@@ -275,9 +334,15 @@ def add_record(data: RecordRequest):
 
     with get_db() as conn:
         cur = conn.cursor()
-        cur.execute("SELECT steam_fee_rate FROM settings WHERE id = 1")
+        cur.execute("SELECT steam_fee_rate, sell_currency, sell_currency_symbol, exchange_rate, my_currency, my_currency_symbol FROM settings WHERE id = 1")
         row = cur.fetchone()
         fee_rate = row["steam_fee_rate"] if row else 0.15
+        sell_currency = row["sell_currency"] if row else "CNY"
+        sell_currency_symbol = row["sell_currency_symbol"] if row else "¥"
+        exchange_rate = row["exchange_rate"] if row else 1.0
+        my_currency = row["my_currency"] if row else "CNY"
+        my_currency_symbol = row["my_currency_symbol"] if row else "¥"
+        
         net_rate = 1.0 - fee_rate
 
         unit_net = unit_steam_sell * net_rate
@@ -285,21 +350,32 @@ def add_record(data: RecordRequest):
         total_steam_sell = unit_steam_sell * qty
         total_net = unit_net * qty
         ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        total_cost_in_my_currency = total_cost * exchange_rate
+        total_net_in_my_currency = total_net * exchange_rate
+        total_steam_sell_in_my_currency = total_steam_sell * exchange_rate
 
         cur.execute(
             """
             INSERT INTO history (ts, item_name, note, unit_cost, unit_steam_sell,
-                                qty, unit_net, total_cost, total_steam_sell, total_net)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                qty, unit_net, total_cost, total_steam_sell, total_net,
+                                sell_currency, sell_currency_symbol, exchange_rate,
+                                my_currency, my_currency_symbol,
+                                total_cost_in_my_currency, total_net_in_my_currency,
+                                total_steam_sell_in_my_currency)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (ts, item_name, note, unit_cost, unit_steam_sell, qty,
-             unit_net, total_cost, total_steam_sell, total_net),
+             unit_net, total_cost, total_steam_sell, total_net,
+             sell_currency, sell_currency_symbol, exchange_rate,
+             my_currency, my_currency_symbol,
+             total_cost_in_my_currency, total_net_in_my_currency,
+             total_steam_sell_in_my_currency),
         )
 
     invalidate_stats_cache()
 
     return {"message": "已记录"}
-
 
 @app.delete("/api/records/{record_id}")
 def delete_record(record_id: int):
@@ -311,7 +387,6 @@ def delete_record(record_id: int):
 
     return {"message": "已删除"}
 
-
 @app.delete("/api/records")
 def clear_records():
     with get_db() as conn:
@@ -322,7 +397,6 @@ def clear_records():
 
     return {"message": "已清空全部历史"}
 
-
 @app.get("/api/stats", response_model=StatsResponse)
 def get_stats():
     if _stats_cache.is_valid():
@@ -330,6 +404,16 @@ def get_stats():
 
     with get_db() as conn:
         cur = conn.cursor()
+        
+        # 获取当前设置
+        cur.execute("SELECT my_currency, my_currency_symbol, exchange_rate, sell_currency FROM settings WHERE id = 1")
+        settings_row = cur.fetchone()
+        current_my_currency = settings_row["my_currency"] if settings_row else "CNY"
+        current_my_currency_symbol = settings_row["my_currency_symbol"] if settings_row else "¥"
+        current_exchange_rate = settings_row["exchange_rate"] if settings_row else 1.0
+        current_sell_currency = settings_row["sell_currency"] if settings_row else "CNY"
+        
+        # 查询原始金额（按售出货币）
         cur.execute(
             """
             SELECT
@@ -341,6 +425,12 @@ def get_stats():
             """
         )
         total_cost, total_net, total_steam_sell, total_qty = cur.fetchone()
+        
+        # 根据当前设置转换为我的货币
+        if current_sell_currency != current_my_currency:
+            total_cost = total_cost * current_exchange_rate
+            total_net = total_net * current_exchange_rate
+            total_steam_sell = total_steam_sell * current_exchange_rate
 
     ratio = (total_cost / total_net) if total_net > 0 else 0.0
     discount = (1.0 - ratio) if total_net > 0 else 0.0
@@ -351,12 +441,13 @@ def get_stats():
         "total_steam_sell": float(total_steam_sell),
         "total_qty": int(total_qty),
         "ratio": float(ratio),
-        "discount": float(discount)
+        "discount": float(discount),
+        "my_currency": current_my_currency,
+        "my_currency_symbol": current_my_currency_symbol
     }
 
     _stats_cache.set(response_data)
     return response_data
-
 
 @app.get("/api/exchange-rate", response_model=ExchangeRateResponse)
 def get_exchange_rate(base: str = "CNY", target: str = "CNY"):
@@ -364,31 +455,125 @@ def get_exchange_rate(base: str = "CNY", target: str = "CNY"):
         raise HTTPException(status_code=400, detail="缺少参数：base 和 target")
     
     if base == target:
-        raise HTTPException(status_code=400, detail="买入货币和卖出货币相同，无需汇率")
+        return {"rate": 1.0, "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "message": "相同货币"}
     
     try:
+        import requests
         url = f"https://api.frankfurter.dev/v1/latest?base={base}&symbols={target}"
         response = requests.get(url, timeout=10)
         response.raise_for_status()
         data = response.json()
         
         if target not in data.get("rates", {}):
-            raise HTTPException(status_code=400, detail=f"无法获取 {base} 到 {target} 的汇率")
+            return {"rate": 1.0, "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "message": "获取失败"}
         
         rate = round(data["rates"][target], 4)
-        return {
-            "base": base,
-            "target": target,
-            "rate": rate
-        }
-    except requests.exceptions.RequestException as e:
-        raise HTTPException(status_code=500, detail=f"获取汇率失败：{str(e)}")
-    except HTTPException:
-        raise
+        updated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        with get_db() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "UPDATE settings SET exchange_rate = ?, exchange_rate_updated_at = ? WHERE id = 1",
+                (rate, updated_at)
+            )
+        
+        invalidate_settings_cache()
+        
+        return {"rate": rate, "updated_at": updated_at, "message": "获取成功"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"服务器错误：{str(e)}")
+        return {"rate": 1.0, "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "message": f"获取失败: {str(e)}"}
 
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ts TEXT NOT NULL,
+            item_name TEXT NOT NULL,
+            note TEXT,
+            unit_cost REAL NOT NULL,
+            unit_steam_sell REAL NOT NULL,
+            qty INTEGER NOT NULL,
+            unit_net REAL NOT NULL,
+            total_cost REAL NOT NULL,
+            total_steam_sell REAL NOT NULL,
+            total_net REAL NOT NULL,
+            sell_currency TEXT NOT NULL DEFAULT 'CNY',
+            sell_currency_symbol TEXT NOT NULL DEFAULT '¥',
+            exchange_rate REAL NOT NULL DEFAULT 1.0,
+            my_currency TEXT NOT NULL DEFAULT 'CNY',
+            my_currency_symbol TEXT NOT NULL DEFAULT '¥',
+            total_cost_in_my_currency REAL NOT NULL DEFAULT 0,
+            total_net_in_my_currency REAL NOT NULL DEFAULT 0,
+            total_steam_sell_in_my_currency REAL NOT NULL DEFAULT 0
+        )
+        """
+    )
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS settings (
+            id INTEGER PRIMARY KEY,
+            buy_currency TEXT NOT NULL DEFAULT 'CNY',
+            buy_currency_symbol TEXT NOT NULL DEFAULT '¥',
+            sell_currency TEXT NOT NULL DEFAULT 'CNY',
+            sell_currency_symbol TEXT NOT NULL DEFAULT '¥',
+            exchange_rate REAL NOT NULL DEFAULT 1.0,
+            steam_fee_rate REAL NOT NULL DEFAULT 0.15,
+            theme_mode TEXT NOT NULL DEFAULT 'LIGHT',
+            my_currency TEXT NOT NULL DEFAULT 'CNY',
+            my_currency_symbol TEXT NOT NULL DEFAULT '¥',
+            exchange_rate_updated_at TEXT,
+            language TEXT NOT NULL DEFAULT 'zh'
+        )
+        """
+    )
+
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_history_id_desc ON history(id DESC)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_history_ts_desc ON history(ts DESC)")
+    
+    cur.execute("PRAGMA table_info(history)")
+    history_columns = [col[1] for col in cur.fetchall()]
+    if "sell_currency" not in history_columns:
+        cur.execute("ALTER TABLE history ADD COLUMN sell_currency TEXT NOT NULL DEFAULT 'CNY'")
+    if "sell_currency_symbol" not in history_columns:
+        cur.execute("ALTER TABLE history ADD COLUMN sell_currency_symbol TEXT NOT NULL DEFAULT '¥'")
+    if "exchange_rate" not in history_columns:
+        cur.execute("ALTER TABLE history ADD COLUMN exchange_rate REAL NOT NULL DEFAULT 1.0")
+    if "my_currency" not in history_columns:
+        cur.execute("ALTER TABLE history ADD COLUMN my_currency TEXT NOT NULL DEFAULT 'CNY'")
+    if "my_currency_symbol" not in history_columns:
+        cur.execute("ALTER TABLE history ADD COLUMN my_currency_symbol TEXT NOT NULL DEFAULT '¥'")
+    if "total_cost_in_my_currency" not in history_columns:
+        cur.execute("ALTER TABLE history ADD COLUMN total_cost_in_my_currency REAL NOT NULL DEFAULT 0")
+    if "total_net_in_my_currency" not in history_columns:
+        cur.execute("ALTER TABLE history ADD COLUMN total_net_in_my_currency REAL NOT NULL DEFAULT 0")
+    if "total_steam_sell_in_my_currency" not in history_columns:
+        cur.execute("ALTER TABLE history ADD COLUMN total_steam_sell_in_my_currency REAL NOT NULL DEFAULT 0")
+    
+    cur.execute("PRAGMA table_info(settings)")
+    columns = [col[1] for col in cur.fetchall()]
+    if "theme_mode" not in columns:
+        cur.execute("ALTER TABLE settings ADD COLUMN theme_mode TEXT NOT NULL DEFAULT 'LIGHT'")
+    if "my_currency" not in columns:
+        cur.execute("ALTER TABLE settings ADD COLUMN my_currency TEXT NOT NULL DEFAULT 'CNY'")
+    if "my_currency_symbol" not in columns:
+        cur.execute("ALTER TABLE settings ADD COLUMN my_currency_symbol TEXT NOT NULL DEFAULT '¥'")
+    if "exchange_rate_updated_at" not in columns:
+        cur.execute("ALTER TABLE settings ADD COLUMN exchange_rate_updated_at TEXT")
+    if "language" not in columns:
+        cur.execute("ALTER TABLE settings ADD COLUMN language TEXT NOT NULL DEFAULT 'zh'")
+    cur.execute("SELECT COUNT(*) FROM settings")
+    if cur.fetchone()[0] == 0:
+        cur.execute("INSERT INTO settings (id) VALUES (1)")
+    conn.commit()
+    conn.close()
+
+@app.on_event("startup")
+async def startup_event():
+    init_db()
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=5000)
+    uvicorn.run(app, host="0.0.0.0", port=5000, reload=True)
