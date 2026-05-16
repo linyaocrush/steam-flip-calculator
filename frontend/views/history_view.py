@@ -21,8 +21,16 @@ def create_history_view(settings, snack, t):
     )
 
     def row_for_record(r, on_refresh):
-        ratio = (r["total_cost"] / r["total_net"]) if r["total_net"] > 0 else 0.0
-        discount = (1.0 - ratio) if r["total_net"] > 0 else 0.0
+        # 直接使用数据库中保存的折扣值，不再重新计算
+        discount = r.get("discount", 0.0)
+        
+        # 获取转换后的金额
+        total_net_in_my = r.get("total_net_in_my_currency", r["total_net"])
+        
+        # 获取货币符号，默认使用设置中的符号
+        sell_currency_symbol = r.get("sell_currency_symbol", settings.get("sell_currency_symbol", "¥"))
+        buy_currency_symbol = r.get("buy_currency_symbol", settings.get("buy_currency_symbol", "¥"))
+        my_currency_symbol = r.get("my_currency_symbol", settings.get("my_currency_symbol", "¥"))
 
         def do_delete(_):
             _, status = api_delete(f"/records/{r['id']}")
@@ -46,11 +54,11 @@ def create_history_view(settings, snack, t):
                 ft.DataCell(ft.Text(r["ts"])),
                 ft.DataCell(item_col),
                 ft.DataCell(ft.Text(str(r["qty"]))),
-                ft.DataCell(ft.Text(money(r["unit_cost"]))),
-                ft.DataCell(ft.Text(money(r["unit_steam_sell"]))),
-                ft.DataCell(ft.Text(money(r["unit_net"]))),
-                ft.DataCell(ft.Text(money(r["total_cost"]))),
-                ft.DataCell(ft.Text(money(r["total_net"]))),
+                ft.DataCell(ft.Text(f"{buy_currency_symbol} {money(r['unit_cost'])}")),
+                ft.DataCell(ft.Text(f"{sell_currency_symbol} {money(r['unit_steam_sell'])}")),
+                ft.DataCell(ft.Text(f"{sell_currency_symbol} {money(r['unit_net'])}")),
+                ft.DataCell(ft.Text(f"{buy_currency_symbol} {money(r['total_cost'])}")),
+                ft.DataCell(ft.Text(f"{my_currency_symbol} {money(total_net_in_my)}")),
                 ft.DataCell(ft.Text(pct(discount))),
                 ft.DataCell(ft.IconButton(icon=ft.Icons.DELETE_OUTLINE, tooltip=t("delete"), on_click=do_delete)),
             ]

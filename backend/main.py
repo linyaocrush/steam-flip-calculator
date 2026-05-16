@@ -119,6 +119,7 @@ class RecordRequest(BaseModel):
     unit_cost: float = Field(..., description="成本单价")
     unit_steam_sell: float = Field(..., description="Steam 售价单价")
     qty: int = Field(default=1, description="数量")
+    discount: float = Field(default=0.0, description="折扣值（从计算器页面传入）")
 
 class RecordResponse(BaseModel):
     id: int
@@ -286,17 +287,13 @@ def get_records():
         cur = conn.cursor()
         cur.execute(
             """
-            SELECT id, ts, item_name, note, unit_cost, unit_steam_sell,
-                   qty, unit_net, total_cost, total_net, discount
-            FROM (
-                SELECT id, ts, item_name, COALESCE(note, '') as note,
-                       unit_cost, unit_steam_sell, qty, unit_net, total_cost, total_net,
-                       ROUND(100.0 * (1.0 - total_cost / total_net), 2) as discount
-                FROM history
-                ORDER BY id DESC
-                LIMIT 500
-            )
+            SELECT id, ts, item_name, COALESCE(note, '') as note,
+                   unit_cost, unit_steam_sell, qty, unit_net, total_cost, total_net,
+                   sell_currency_symbol, buy_currency_symbol, my_currency_symbol,
+                   total_cost_in_my_currency, total_net_in_my_currency, discount
+            FROM history
             ORDER BY id DESC
+            LIMIT 500
             """
         )
         rows = cur.fetchall()
@@ -314,6 +311,11 @@ def get_records():
             "unit_net": row["unit_net"],
             "total_cost": row["total_cost"],
             "total_net": row["total_net"],
+            "total_cost_in_my_currency": row["total_cost_in_my_currency"],
+            "total_net_in_my_currency": row["total_net_in_my_currency"],
+            "sell_currency_symbol": row["sell_currency_symbol"],
+            "buy_currency_symbol": row["buy_currency_symbol"],
+            "my_currency_symbol": row["my_currency_symbol"],
             "discount": row["discount"]
         })
 
@@ -326,6 +328,7 @@ def add_record(data: RecordRequest):
     unit_cost = data.unit_cost
     unit_steam_sell = data.unit_steam_sell
     qty = data.qty
+    discount = data.discount  # 直接使用前端传入的折扣值
 
     if not item_name:
         raise HTTPException(status_code=400, detail="请填写物品名称")
@@ -334,11 +337,13 @@ def add_record(data: RecordRequest):
 
     with get_db() as conn:
         cur = conn.cursor()
-        cur.execute("SELECT steam_fee_rate, sell_currency, sell_currency_symbol, exchange_rate, my_currency, my_currency_symbol FROM settings WHERE id = 1")
+        cur.execute("SELECT steam_fee_rate, sell_currency, sell_currency_symbol, buy_currency, buy_currency_symbol, exchange_rate, my_currency, my_currency_symbol FROM settings WHERE id = 1")
         row = cur.fetchone()
         fee_rate = row["steam_fee_rate"] if row else 0.15
         sell_currency = row["sell_currency"] if row else "CNY"
         sell_currency_symbol = row["sell_currency_symbol"] if row else "¥"
+        buy_currency = row["buy_currency"] if row else "CNY"
+        buy_currency_symbol = row["buy_currency_symbol"] if row else "¥"
         exchange_rate = row["exchange_rate"] if row else 1.0
         my_currency = row["my_currency"] if row else "CNY"
         my_currency_symbol = row["my_currency_symbol"] if row else "¥"
@@ -354,23 +359,30 @@ def add_record(data: RecordRequest):
         total_cost_in_my_currency = total_cost * exchange_rate
         total_net_in_my_currency = total_net * exchange_rate
         total_steam_sell_in_my_currency = total_steam_sell * exchange_rate
+        
+        # 直接使用前端传入的折扣值，不再重新计算
+        # discount = data.discount  # 已在开头获取
 
         cur.execute(
             """
             INSERT INTO history (ts, item_name, note, unit_cost, unit_steam_sell,
                                 qty, unit_net, total_cost, total_steam_sell, total_net,
-                                sell_currency, sell_currency_symbol, exchange_rate,
+                                sell_currency, sell_currency_symbol,
+                                buy_currency, buy_currency_symbol,
+                                exchange_rate,
                                 my_currency, my_currency_symbol,
                                 total_cost_in_my_currency, total_net_in_my_currency,
-                                total_steam_sell_in_my_currency)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                total_steam_sell_in_my_currency, discount)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (ts, item_name, note, unit_cost, unit_steam_sell, qty,
              unit_net, total_cost, total_steam_sell, total_net,
-             sell_currency, sell_currency_symbol, exchange_rate,
+             sell_currency, sell_currency_symbol,
+             buy_currency, buy_currency_symbol,
+             exchange_rate,
              my_currency, my_currency_symbol,
              total_cost_in_my_currency, total_net_in_my_currency,
-             total_steam_sell_in_my_currency),
+             total_steam_sell_in_my_currency, discount),
         )
 
     invalidate_stats_cache()
@@ -502,12 +514,15 @@ def init_db():
             total_net REAL NOT NULL,
             sell_currency TEXT NOT NULL DEFAULT 'CNY',
             sell_currency_symbol TEXT NOT NULL DEFAULT '¥',
+            buy_currency TEXT NOT NULL DEFAULT 'CNY',
+            buy_currency_symbol TEXT NOT NULL DEFAULT '¥',
             exchange_rate REAL NOT NULL DEFAULT 1.0,
             my_currency TEXT NOT NULL DEFAULT 'CNY',
             my_currency_symbol TEXT NOT NULL DEFAULT '¥',
             total_cost_in_my_currency REAL NOT NULL DEFAULT 0,
             total_net_in_my_currency REAL NOT NULL DEFAULT 0,
-            total_steam_sell_in_my_currency REAL NOT NULL DEFAULT 0
+            total_steam_sell_in_my_currency REAL NOT NULL DEFAULT 0,
+            discount REAL NOT NULL DEFAULT 0
         )
         """
     )
@@ -539,6 +554,10 @@ def init_db():
         cur.execute("ALTER TABLE history ADD COLUMN sell_currency TEXT NOT NULL DEFAULT 'CNY'")
     if "sell_currency_symbol" not in history_columns:
         cur.execute("ALTER TABLE history ADD COLUMN sell_currency_symbol TEXT NOT NULL DEFAULT '¥'")
+    if "buy_currency" not in history_columns:
+        cur.execute("ALTER TABLE history ADD COLUMN buy_currency TEXT NOT NULL DEFAULT 'CNY'")
+    if "buy_currency_symbol" not in history_columns:
+        cur.execute("ALTER TABLE history ADD COLUMN buy_currency_symbol TEXT NOT NULL DEFAULT '¥'")
     if "exchange_rate" not in history_columns:
         cur.execute("ALTER TABLE history ADD COLUMN exchange_rate REAL NOT NULL DEFAULT 1.0")
     if "my_currency" not in history_columns:
@@ -551,6 +570,8 @@ def init_db():
         cur.execute("ALTER TABLE history ADD COLUMN total_net_in_my_currency REAL NOT NULL DEFAULT 0")
     if "total_steam_sell_in_my_currency" not in history_columns:
         cur.execute("ALTER TABLE history ADD COLUMN total_steam_sell_in_my_currency REAL NOT NULL DEFAULT 0")
+    if "discount" not in history_columns:
+        cur.execute("ALTER TABLE history ADD COLUMN discount REAL NOT NULL DEFAULT 0")
     
     cur.execute("PRAGMA table_info(settings)")
     columns = [col[1] for col in cur.fetchall()]

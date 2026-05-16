@@ -74,7 +74,7 @@ def main(page: ft.Page):
         snack = ft.SnackBar(content=ft.Text(""))
         page.snack_bar = snack
 
-        def on_add_to_history(tf_item, tf_note, tf_cost, tf_steam_sell, tf_qty):
+        def on_add_to_history(tf_item, tf_note, tf_cost, tf_steam_sell, tf_qty, discount=0.0):
             item_name = (tf_item.value or "").strip()
             if not item_name:
                 snack.content = ft.Text(t("error_empty_item"))
@@ -98,7 +98,8 @@ def main(page: ft.Page):
                 "note": note,
                 "unit_cost": unit_cost,
                 "unit_steam_sell": unit_sell,
-                "qty": qty
+                "qty": qty,
+                "discount": discount
             })
 
             if status == 201:
@@ -146,8 +147,9 @@ def main(page: ft.Page):
             results = api_get_parallel(["/records", "/stats"])
             records_result, stats_result = results
 
-            records, r_status = records_result
+            records_data, r_status = records_result
             if r_status == 200:
+                records = records_data.get("records", [])
                 dt.rows = [row_for_record(r, refresh_history) for r in records]
             else:
                 dt.rows = []
@@ -160,28 +162,33 @@ def main(page: ft.Page):
 
             page.update()
 
-        dlg = ft.AlertDialog(modal=True, title=ft.Text(t("confirm_clear")), content=ft.Text(t("confirm_clear_msg")), actions=[])
-        page.dialog = dlg
-
         def clear_all(_):
             def yes(_):
-                _, status = api_delete("/records")
+                result, status = api_delete("/records")
                 if status == 200:
                     snack.content = ft.Text(t("clear_success"))
                 else:
-                    snack.content = ft.Text(t("clear_failed"))
+                    snack.content = ft.Text(result.get("error", t("clear_failed")))
                 snack.open = True
                 refresh_history()
                 refresh_stats()
-                dlg.open = False
                 page.update()
 
             def no(_):
-                dlg.open = False
+                page.dialog = None
                 page.update()
 
-            dlg.actions = [ft.TextButton(t("cancel"), on_click=no), ft.FilledButton(t("confirm"), on_click=yes)]
-            dlg.open = True
+            page.dialog = ft.AlertDialog(
+                modal=True,
+                title=ft.Text(t("confirm_clear")),
+                content=ft.Text(t("confirm_clear_msg")),
+                actions=[
+                    ft.TextButton(t("cancel"), on_click=no),
+                    ft.FilledButton(t("confirm"), on_click=yes)
+                ],
+                actions_alignment=ft.MainAxisAlignment.END
+            )
+            page.dialog.open = True
             page.update()
 
         history_view = ft.Column(

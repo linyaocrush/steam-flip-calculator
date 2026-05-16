@@ -127,6 +127,25 @@ def create_calculator_view(settings, on_add_to_history, t):
     
     tf_target_amount.on_change = calc_target_qty
 
+    def add_record_with_discount():
+        # 计算当前的折扣值并传递给 on_add_to_history
+        unit_cost = safe_float(tf_cost.value)
+        unit_sell = safe_float(tf_steam_sell.value)
+        qty = safe_int(tf_qty.value)
+        use_exchange = settings["buy_currency"] != settings["sell_currency"]
+        
+        data = calculate_local(
+            unit_cost,
+            unit_sell,
+            qty,
+            use_exchange,
+            settings["exchange_rate"],
+            settings["steam_fee_rate"],
+        )
+        
+        # 传递计算好的折扣值
+        on_add_to_history(tf_item, tf_note, tf_cost, tf_steam_sell, tf_qty, data['discount'])
+
     def kv_row(k: str, v: ft.Control):
         return ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text(k), v])
 
@@ -144,7 +163,7 @@ def create_calculator_view(settings, on_add_to_history, t):
                 ft.Text(t("reverse_title"), size=14, weight=ft.FontWeight.W_600),
                 ft.Text(t("steam_fee", fee=fee_percent), size=12, opacity=0.8),
                 kv_row(t("break_even_price"), out_need_sell),
-                ft.FilledButton(t("add_to_history"), icon=ft.Icons.ADD_CIRCLE_OUTLINE, on_click=lambda _: on_add_to_history(tf_item, tf_note, tf_cost, tf_steam_sell, tf_qty)),
+                ft.FilledButton(t("add_to_history"), icon=ft.Icons.ADD_CIRCLE_OUTLINE, on_click=lambda _: add_record_with_discount()),
             ],
         ),
     )
