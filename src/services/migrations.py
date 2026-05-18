@@ -1,7 +1,7 @@
 import sqlite3
 import json
 from typing import Optional, List, Dict, Any
-from src.config import DB_PATH, DATA_DIR
+from config import DB_PATH, DATA_DIR
 import os
 
 

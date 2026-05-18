@@ -1,4 +1,5 @@
 import os
+import sys
 
 CURRENCIES = [
     {"code": "CNY", "name": "人民币", "symbol": "¥"},
@@ -31,7 +32,13 @@ DEFAULT_SETTINGS = {
     "language": "zh",
 }
 
-ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+def get_app_dir():
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(sys.executable)
+    else:
+        return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+ROOT_DIR = get_app_dir()
 DATA_DIR = os.path.join(ROOT_DIR, "data")
 DB_PATH = os.path.join(DATA_DIR, "steam_flip.db")
 CACHE_TTL = 5

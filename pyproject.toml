@@ -1,0 +1,19 @@
+[project]
+name = "steam-flip-calculator"
+version = "1.0.0"
+description = "Steam 倒余额工具箱"
+authors = [{name = "linyaocrush", email = ""}]
+dependencies = [
+    "flet>=0.85.0",
+    "pydantic>=2.0.0",
+    "requests>=2.31.0",
+]
+
+[tool.flet]
+org = "com.steamflipcalculator"
+product = "SteamFlipCalculator"
+company = "linyaocrush"
+copyright = "Copyright (C) 2025 by linyaocrush"
+
+[tool.flet.app]
+path = "src"

@@ -1,17 +1,17 @@
 import flet as ft
-from src.config import DEFAULT_SETTINGS, CURRENCY_SYMBOLS
-from src.utils import safe_float, safe_int
-from src.utils.i18n import get_text
-from src.services.database import init_db, get_settings, get_records, get_stats, add_record, clear_records
-from src.state.app_state import app_state
-from src.services.exchange_rate import fetch_exchange_rate
-from src.views import (
+from config import DEFAULT_SETTINGS, CURRENCY_SYMBOLS
+from utils import safe_float, safe_int
+from utils.i18n import get_text
+from services.database import init_db, get_settings, get_records, get_stats, add_record, clear_records
+from state.app_state import app_state
+from services.exchange_rate import fetch_exchange_rate
+from views import (
     create_calculator_view,
     create_history_view,
     create_stats_view,
     create_settings_view,
 )
-from src.ui.glassmorphism import (
+from ui.glassmorphism import (
     create_gradient_background,
     create_floating_orbs,
     create_glass_card,

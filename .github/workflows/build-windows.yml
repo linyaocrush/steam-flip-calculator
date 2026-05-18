@@ -1,0 +1,188 @@
+name: Build Flet App
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v2.0.0)'
+        required: true
+        type: string
+        default: 'v2.0.0'
+      prerelease:
+        description: 'Is this a prerelease?'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  UV_PYTHON: 3.12
+  PYTHONUTF8: 1
+  FLET_CLI_NO_RICH_OUTPUT: 1
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows
+            runner: windows-latest
+            build_cmd: "flet build windows"
+            artifact_path: build/windows
+            needs_linux_deps: false
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Install Linux dependencies
+        if: matrix.needs_linux_deps
+        shell: bash
+        run: |
+            sudo apt update --allow-releaseinfo-change
+            LINUX_DEPS="$(uv run python -c 'from flet.utils.linux_deps import linux_dependencies; print(" ".join(linux_dependencies))')"
+            sudo apt-get install -y --no-install-recommends $LINUX_DEPS
+            sudo apt-get clean
+
+      - name: Build app
+        shell: bash
+        run: |
+          uv run ${{ matrix.build_cmd }} --yes --verbose
+
+      - name: Create release directory
+        if: matrix.name == 'windows'
+        shell: bash
+        run: |
+          mkdir -p release
+          cp -r build/windows/* release/
+          
+          # Create README for release
+          cat > release/使用说明.txt << 'EOF'
+          # Steam 倒余额工具箱
+          
+          版本: ${{ github.event.inputs.version }}
+          
+          ## 快速开始
+          
+          1. 双击运行 SteamFlipCalculator.exe
+          2. 首次运行会自动创建数据库文件
+          
+          ## 系统要求
+          
+          - Windows 10 或更高版本
+          - 64位操作系统
+          
+          ## 注意事项
+          
+          - 请确保 src 和 data 文件夹与程序在同一目录
+          - 首次运行可能需要防火墙权限
+          - 建议将整个文件夹放在非系统盘
+          - 数据库文件位于 data 文件夹，建议定期备份
+          
+          ## 问题反馈
+          
+          如遇问题，请访问 GitHub 提交 Issue
+          EOF
+
+      - name: Create ZIP archive
+        if: matrix.name == 'windows'
+        shell: bash
+        run: |
+          cd release
+          7z a -tzip ../SteamFlipCalculator-${{ github.event.inputs.version }}-windows.zip *
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v5.0.0
+        with:
+          name: ${{ matrix.name }}-build-artifact
+          path: ${{ matrix.artifact_path }}
+          if-no-files-found: error
+          overwrite: false
+
+      - name: Upload release package
+        if: matrix.name == 'windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-package
+          path: |
+            SteamFlipCalculator-*-windows.zip
+          retention-days: 30
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-package
+          path: ./release
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.event.inputs.version }}
+          name: Release ${{ github.event.inputs.version }}
+          body: |
+            ## Steam 倒余额工具箱 ${{ github.event.inputs.version }}
+            
+            ### 📦 下载
+            
+            - `SteamFlipCalculator-*-windows.zip`: Windows 便携版（推荐）
+            
+            ### 🚀 新功能
+            
+            - 🔄 重构项目结构，按功能模块化
+            - 📦 引入 AppState 状态管理系统
+            - 🗄️ 优化数据库结构，使用 JSON 快照减少冗余
+            - 🚀 添加数据库迁移机制
+            - 🎨 改进货币符号显示逻辑
+            
+            ### 🐛 Bug 修复
+            
+            - 修复折扣计算错误
+            - 修复设置变更后货币符号不更新的问题
+            
+            ### 📋 系统要求
+            
+            - Windows 10 或更高版本
+            - 64位操作系统
+            - 至少 100MB 可用磁盘空间
+            
+            ### 📖 使用说明
+            
+            **便携版：**
+            1. 下载并解压 ZIP 文件
+            2. 双击运行 `SteamFlipCalculator.exe`
+            3. 首次运行会自动创建数据库文件
+            4. 开始使用！
+            
+            ### 💾 数据备份
+            
+            - 数据库文件位于 `data` 文件夹
+            - 建议定期备份 `data` 文件夹
+            - 更新版本时保留 `data` 文件夹可保留历史记录
+            
+            ### ⚠️ 注意事项
+            
+            - 首次运行可能需要防火墙权限
+            - 建议将程序放在非系统盘
+            - 如遇问题请提交 Issue
+            
+            ---
+            
+            [完整更新日志](https://github.com/${{ github.repository }}/blob/main/README.md#更新日志)
+          draft: false
+          prerelease: ${{ github.event.inputs.prerelease }}
+          files: |
+            release/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

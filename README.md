@@ -42,28 +42,19 @@
 
 1. 克隆或下载项目到本地
 
-2. 创建虚拟环境：
-   ```bash
-   python -m venv venv
-   ```
-
-3. 激活虚拟环境：
-   ```bash
-   # Windows:
-   venv\Scripts\activate
-   # Linux/Mac:
-   source venv/bin/activate
-   ```
-
-4. 安装依赖：
+2. 安装依赖：
    ```bash
    pip install -r requirements.txt
    ```
 
-5. 运行应用：
+3. 运行应用：
    ```bash
-   python main.py
+   python src/main.py
    ```
+
+### 下载发布版本
+
+您也可以从 [GitHub Releases](../../releases) 下载预编译的可执行文件，无需安装 Python 环境。
 
 ## 使用说明
 
@@ -105,11 +96,12 @@
 
 ```
 steam-flip-calculator/
-├── main.py                          # 主程序入口
+├── pyproject.toml                   # 项目配置文件
 ├── requirements.txt                 # 依赖列表
 ├── data/
 │   └── steam_flip.db                # SQLite 数据库（运行后自动生成）
 ├── src/                             # 源代码目录
+│   ├── main.py                      # 主程序入口
 │   ├── config/                      # 配置模块
 │   │   └── __init__.py              # 默认设置和常量
 │   ├── models/                      # 数据模型

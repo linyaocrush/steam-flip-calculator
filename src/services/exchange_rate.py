@@ -1,7 +1,7 @@
 import requests
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
-from src.services.database import get_db, invalidate_settings_cache
+from services.database import get_db, invalidate_settings_cache
 
 
 def fetch_exchange_rate(base: str, target: str, force_refresh: bool = False) -> tuple:

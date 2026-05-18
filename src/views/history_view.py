@@ -1,6 +1,6 @@
 import flet as ft
-from src.utils import money, pct
-from src.config import CURRENCY_SYMBOLS
+from utils import money, pct
+from config import CURRENCY_SYMBOLS
 
 
 def create_history_view(settings, snack, t):
