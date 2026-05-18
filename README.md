@@ -107,8 +107,6 @@
 steam-flip-calculator/
 ├── main.py                          # 主程序入口
 ├── requirements.txt                 # 依赖列表
-├── README.md                        # 项目说明
-├── DATABASE_MIGRATIONS.md           # 数据库迁移文档
 ├── data/
 │   └── steam_flip.db                # SQLite 数据库（运行后自动生成）
 ├── src/                             # 源代码目录
