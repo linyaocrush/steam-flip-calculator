@@ -87,6 +87,20 @@ def init_db():
     cur.execute("CREATE INDEX IF NOT EXISTS idx_history_id_desc ON history(id DESC)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_history_ts_desc ON history(ts DESC)")
     
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS exchange_rates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            base_currency TEXT NOT NULL,
+            target_currency TEXT NOT NULL,
+            rate REAL NOT NULL,
+            updated_at TEXT NOT NULL,
+            UNIQUE(base_currency, target_currency)
+        )
+        """
+    )
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_exchange_rates_base_target ON exchange_rates(base_currency, target_currency)")
+    
     cur.execute("PRAGMA table_info(history)")
     columns = [column[1] for column in cur.fetchall()]
     if 'ratio' not in columns:
@@ -232,10 +246,10 @@ def get_records(limit: int = 500) -> List[HistoryRecord]:
         cur.execute(
             """
             SELECT id, ts, item_name, COALESCE(note, '') as note,
-                   unit_cost, unit_steam_sell, qty, unit_net, total_cost, total_net,
+                   unit_cost, unit_steam_sell, qty, unit_net, total_cost, total_net, total_steam_sell,
                    sell_currency, sell_currency_symbol, buy_currency, buy_currency_symbol,
                    exchange_rate, my_currency, my_currency_symbol,
-                   total_cost_in_my_currency, total_net_in_my_currency, discount, ratio
+                   total_cost_in_my_currency, total_net_in_my_currency, total_steam_sell_in_my_currency, discount, ratio
             FROM history
             ORDER BY id DESC
             LIMIT ?
@@ -256,7 +270,7 @@ def get_records(limit: int = 500) -> List[HistoryRecord]:
             "qty": row["qty"],
             "unit_net": row["unit_net"],
             "total_cost": row["total_cost"],
-            "total_steam_sell": row["total_cost"] + row["total_net"],
+            "total_steam_sell": row["total_steam_sell"],
             "total_net": row["total_net"],
             "sell_currency": row["sell_currency"],
             "sell_currency_symbol": row["sell_currency_symbol"],
@@ -267,7 +281,7 @@ def get_records(limit: int = 500) -> List[HistoryRecord]:
             "my_currency_symbol": row["my_currency_symbol"],
             "total_cost_in_my_currency": row["total_cost_in_my_currency"],
             "total_net_in_my_currency": row["total_net_in_my_currency"],
-            "total_steam_sell_in_my_currency": row["total_cost_in_my_currency"] + row["total_net_in_my_currency"],
+            "total_steam_sell_in_my_currency": row["total_steam_sell_in_my_currency"],
             "discount": row["discount"],
             "ratio": row["ratio"] if "ratio" in row.keys() else 0.0
         }

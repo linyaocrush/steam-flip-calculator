@@ -9,14 +9,17 @@ def fetch_exchange_rate(base: str, target: str, force_refresh: bool = False) -> 
     
     with get_db() as conn:
         cur = conn.cursor()
-        cur.execute("SELECT exchange_rate, exchange_rate_updated_at FROM settings WHERE id = 1")
+        cur.execute(
+            "SELECT rate, updated_at FROM exchange_rates WHERE base_currency = ? AND target_currency = ?",
+            (base, target)
+        )
         row = cur.fetchone()
         
         cached_rate = None
         cached_time = None
         if row:
-            cached_rate = row["exchange_rate"]
-            cached_time = row["exchange_rate_updated_at"]
+            cached_rate = row["rate"]
+            cached_time = row["updated_at"]
         
         if not force_refresh and cached_rate is not None and cached_time is not None:
             try:
@@ -43,11 +46,14 @@ def fetch_exchange_rate(base: str, target: str, force_refresh: bool = False) -> 
         with get_db() as conn:
             cur = conn.cursor()
             cur.execute(
-                "UPDATE settings SET exchange_rate = ?, exchange_rate_updated_at = ? WHERE id = 1",
-                (rate, updated_at)
+                """
+                INSERT INTO exchange_rates (base_currency, target_currency, rate, updated_at)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(base_currency, target_currency) 
+                DO UPDATE SET rate = excluded.rate, updated_at = excluded.updated_at
+                """,
+                (base, target, rate, updated_at)
             )
-        
-        invalidate_settings_cache()
         
         return rate, updated_at, "获取成功"
     except Exception as e:
