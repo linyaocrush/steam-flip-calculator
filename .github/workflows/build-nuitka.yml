@@ -139,12 +139,9 @@ jobs:
           MinVersion=10.0
           OutputDir=release/installer
           
-          [Languages]
-          Name: "chinesesimp"; MessagesFile: "compiler:Languages\ChineseSimp.isl"
-          
           [Tasks]
-          Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: "附加图标:"; Flags: unchecked
-          Name: "quicklaunchicon"; Description: "创建快速启动图标"; GroupDescription: "附加图标:"; Flags: unchecked; OnlyBelowVersion: 6.1
+          Name: "desktopicon"; Description: "Create desktop shortcut"; GroupDescription: "Additional icons:"; Flags: unchecked
+          Name: "quicklaunchicon"; Description: "Create quick launch icon"; GroupDescription: "Additional icons:"; Flags: unchecked; OnlyBelowVersion: 6.1
           
           [Files]
           Source: "release\standalone\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -157,7 +154,7 @@ jobs:
           Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\Steam 倒余额工具箱"; Filename: "{app}\SteamFlipCalculator.exe"; Tasks: quicklaunchicon
           
           [Run]
-          Filename: "{app}\SteamFlipCalculator.exe"; Description: "启动 Steam 倒余额工具箱"; Flags: nowait postinstall skipifsilent
+          Filename: "{app}\SteamFlipCalculator.exe"; Description: "Launch Steam 倒余额工具箱"; Flags: nowait postinstall skipifsilent
           
           [UninstallDelete]
           Type: filesandordirs; Name: "{app}\data"
