@@ -1,6 +1,6 @@
 from typing import Callable, Dict, Any, Optional
-from models import Settings
-from database import get_settings as get_db_settings, save_settings
+from src.models import Settings
+from src.services.database import get_settings as get_db_settings, save_settings
 from threading import Lock
 
 

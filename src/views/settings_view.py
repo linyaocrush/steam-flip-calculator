@@ -1,10 +1,10 @@
 import flet as ft
-from utils import safe_float
-from config import CURRENCY_CODES, CURRENCY_SYMBOLS
-from exchange_rate import fetch_exchange_rate
-from database import save_settings
-from i18n import LANGUAGE_CODES, LANGUAGE_LABELS
-from glassmorphism import get_glassmorphism_style
+from src.utils import safe_float
+from src.config import CURRENCY_CODES, CURRENCY_SYMBOLS
+from src.services.exchange_rate import fetch_exchange_rate
+from src.services.database import save_settings
+from src.utils.i18n import LANGUAGE_CODES, LANGUAGE_LABELS
+from src.ui.glassmorphism import get_glassmorphism_style
 
 
 def create_settings_view(settings, snack, t, page):

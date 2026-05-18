@@ -1,7 +1,7 @@
 import flet as ft
-from utils import money, pct
-from glassmorphism import get_glassmorphism_style
-from app_state import app_state
+from src.utils import money, pct
+from src.ui.glassmorphism import get_glassmorphism_style
+from src.state.app_state import app_state
 
 
 def create_stats_view(settings, t):

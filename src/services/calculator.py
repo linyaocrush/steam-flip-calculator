@@ -1,5 +1,5 @@
 from decimal import Decimal, ROUND_HALF_UP, getcontext
-from models import CalculationResult
+from src.models import CalculationResult
 
 getcontext().prec = 28
 

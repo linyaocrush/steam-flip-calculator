@@ -31,6 +31,7 @@ DEFAULT_SETTINGS = {
     "language": "zh",
 }
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+DATA_DIR = os.path.join(ROOT_DIR, "data")
 DB_PATH = os.path.join(DATA_DIR, "steam_flip.db")
 CACHE_TTL = 5

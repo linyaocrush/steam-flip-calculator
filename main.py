@@ -1,17 +1,17 @@
 import flet as ft
-from config import DEFAULT_SETTINGS, CURRENCY_SYMBOLS
-from utils import safe_float, safe_int
-from i18n import get_text
-from database import init_db, get_settings, get_records, get_stats, add_record, clear_records
-from app_state import app_state
-from exchange_rate import fetch_exchange_rate
-from views import (
+from src.config import DEFAULT_SETTINGS, CURRENCY_SYMBOLS
+from src.utils import safe_float, safe_int
+from src.utils.i18n import get_text
+from src.services.database import init_db, get_settings, get_records, get_stats, add_record, clear_records
+from src.state.app_state import app_state
+from src.services.exchange_rate import fetch_exchange_rate
+from src.views import (
     create_calculator_view,
     create_history_view,
     create_stats_view,
     create_settings_view,
 )
-from glassmorphism import (
+from src.ui.glassmorphism import (
     create_gradient_background,
     create_floating_orbs,
     create_glass_card,
@@ -286,8 +286,6 @@ def main(page: ft.Page):
             "language": language,
         }
 
-        from models import Settings
-        settings_obj = Settings(**new_settings)
         settings = app_state.update_settings(new_settings)
         
         page.theme_mode = ft.ThemeMode.DARK

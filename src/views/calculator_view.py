@@ -1,8 +1,8 @@
 import flet as ft
-from utils import money, pct, safe_float, safe_int
-from calculator import calculate_local
-from glassmorphism import create_glass_card, get_glassmorphism_style
-from app_state import app_state
+from src.utils import money, pct, safe_float, safe_int
+from src.services.calculator import calculate_local
+from src.ui.glassmorphism import create_glass_card, get_glassmorphism_style
+from src.state.app_state import app_state
 
 
 def create_calculator_view(settings, on_add_to_history, t):

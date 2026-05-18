@@ -1,5 +1,5 @@
 import flet as ft
-from utils import money, pct
+from src.utils import money, pct
 
 
 def create_history_view(settings, snack, t):

@@ -5,8 +5,8 @@ import threading
 import time
 import os
 from typing import Optional, Dict, Any, List
-from config import DB_PATH, DATA_DIR
-from models import Settings, HistoryRecord, StatsData, Currency
+from src.config import DB_PATH, DATA_DIR
+from src.models import Settings, HistoryRecord, StatsData, Currency
 
 _thread_local_db = threading.local()
 
