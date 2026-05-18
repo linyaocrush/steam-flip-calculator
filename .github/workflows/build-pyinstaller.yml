@@ -46,12 +46,12 @@ jobs:
       - name: Build onefile version
         shell: pwsh
         run: |
-          pyinstaller --onefile --noconsole --name SteamFlipCalculator-OneFile --add-data "src;src" src/main.py
+          pyinstaller --onefile --noconsole --name SteamFlipCalculator-OneFile --add-data "src;src" --hidden-import=flet --hidden-import=flet_desktop --hidden-import=flet_desktop.window src/main.py
 
       - name: Build standalone version
         shell: pwsh
         run: |
-          pyinstaller --noconsole --name SteamFlipCalculator --add-data "src;src" src/main.py
+          pyinstaller --noconsole --name SteamFlipCalculator --add-data "src;src" --hidden-import=flet --hidden-import=flet_desktop --hidden-import=flet_desktop.window src/main.py
 
       - name: Create release directories
         shell: bash
@@ -119,15 +119,33 @@ jobs:
         run: |
           "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" installer.iss
 
+      - name: List files before upload
+        shell: bash
+        run: |
+          echo "=== Root directory ==="
+          ls -la
+          echo ""
+          echo "=== release/onefile ==="
+          ls -la release/onefile/ || echo "Directory not found"
+          echo ""
+          echo "=== release/standalone ==="
+          ls -la release/standalone/ || echo "Directory not found"
+          echo ""
+          echo "=== release/installer ==="
+          ls -la release/installer/ || echo "Directory not found"
+          echo ""
+          echo "=== ZIP files in root ==="
+          ls -la *.zip 2>/dev/null || echo "No ZIP files found"
+
       - name: Upload release package
         uses: actions/upload-artifact@v4
         with:
           name: release-package
           path: |
-            release/onefile/*.exe
-            SteamFlipCalculator-*-standalone-windows.zip
-            release/installer/*.exe
+            release/
+            *.zip
           retention-days: 30
+          if-no-files-found: warn
 
   release:
     needs: build
@@ -142,6 +160,17 @@ jobs:
           name: release-package
           path: .
 
+      - name: List downloaded files
+        run: |
+          echo "=== All downloaded files ==="
+          find . -type f | sort
+          echo ""
+          echo "=== EXE files ==="
+          find . -name "*.exe"
+          echo ""
+          echo "=== ZIP files ==="
+          find . -name "*.zip"
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
@@ -151,7 +180,8 @@ jobs:
           draft: false
           prerelease: ${{ github.event.inputs.prerelease }}
           files: |
+            release/onefile/*.exe
             *.zip
-            *.exe
+            release/installer/*.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
