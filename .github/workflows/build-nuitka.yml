@@ -1,0 +1,237 @@
+name: Build with Nuitka
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 0.0.0)'
+        required: true
+        type: string
+        default: '0.0.0'
+      prerelease:
+        description: 'Is this a prerelease?'
+        required: false
+        type: boolean
+        default: false
+      release_notes:
+        description: 'Custom release notes (supports Markdown)'
+        required: false
+        type: string
+        default: ''
+
+env:
+  PYTHON_VERSION: '3.12'
+  PYTHONUTF8: 1
+
+jobs:
+  build:
+    name: Build Windows with Nuitka
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install nuitka ordered-set zstandard
+
+      - name: Build onefile version
+        run: |
+          python -m nuitka ^
+            --standalone ^
+            --onefile ^
+            --enable-plugin=numpy ^
+            --windows-console-mode=disable ^
+            --windows-icon-from-ico=none ^
+            --output-dir=dist/onefile ^
+            --output-filename=SteamFlipCalculator-OneFile.exe ^
+            --include-data-dir=src=src ^
+            --include-data-dir=data=data ^
+            --assume-yes-for-downloads ^
+            --follow-imports ^
+            --prefer-source-code ^
+            src/main.py
+
+      - name: Build standalone version
+        run: |
+          python -m nuitka ^
+            --standalone ^
+            --enable-plugin=numpy ^
+            --windows-console-mode=disable ^
+            --windows-icon-from-ico=none ^
+            --output-dir=dist/standalone ^
+            --output-filename=SteamFlipCalculator.exe ^
+            --include-data-dir=src=src ^
+            --include-data-dir=data=data ^
+            --assume-yes-for-downloads ^
+            --follow-imports ^
+            --prefer-source-code ^
+            src/main.py
+
+      - name: Create release directories
+        shell: bash
+        run: |
+          mkdir -p release/onefile
+          mkdir -p release/standalone
+          mkdir -p release/installer
+          
+          cp dist/onefile/SteamFlipCalculator-OneFile.exe release/onefile/
+          cp -r dist/standalone/* release/standalone/
+          
+          # Create custom README from user input
+          if [ -n "${{ github.event.inputs.release_notes }}" ]; then
+            echo "${{ github.event.inputs.release_notes }}" > release/使用说明.txt
+          else
+            cat > release/使用说明.txt << 'EOF'
+            # Steam 倒余额工具箱
+            
+            版本: ${{ github.event.inputs.version }}
+            
+            ## 下载说明
+            
+            本版本提供三种下载方式，请根据需求选择：
+            
+            ### 1. 单文件版 (SteamFlipCalculator-OneFile.exe)
+            - **特点**：所有功能打包在一个 exe 文件中
+            - **优点**：下载方便，双击即运行，无需解压
+            - **适用场景**：快速使用，不想解压文件
+            - **文件大小**：较大（包含所有依赖）
+            
+            ### 2. 绿色版 (SteamFlipCalculator-*-standalone-windows.zip)
+            - **特点**：解压后直接运行，无需安装
+            - **优点**：不写入注册表，可随时删除，便携性好
+            - **适用场景**：U盘携带、临时使用、不想安装软件
+            - **文件大小**：中等
+            
+            ### 3. 安装版 (SteamFlipCalculator-*-setup.exe)
+            - **特点**：带安装向导，支持桌面快捷方式
+            - **优点**：正式安装，支持卸载，适合长期使用
+            - **适用场景**：长期使用，需要快捷方式
+            - **文件大小**：中等
+            
+            ## 快速开始
+            
+            下载对应版本后：
+            - 单文件版：双击 SteamFlipCalculator-OneFile.exe
+            - 绿色版：解压后双击 SteamFlipCalculator.exe
+            - 安装版：运行安装程序，按提示完成安装
+            
+            ## 系统要求
+            
+            - Windows 10 或更高版本
+            - 64位操作系统
+            
+            ## 问题反馈
+            
+            如遇问题，请访问 GitHub 提交 Issue
+            EOF
+          fi
+          
+          cp release/使用说明.txt release/onefile/
+          cp release/使用说明.txt release/standalone/
+
+      - name: Create standalone ZIP archive
+        shell: bash
+        run: |
+          cd release/standalone
+          7z a -tzip ../../SteamFlipCalculator-${{ github.event.inputs.version }}-standalone-windows.zip *
+
+      - name: Create Inno Setup installer script for standalone
+        shell: bash
+        run: |
+          cat > installer.iss << 'EOF'
+          [Setup]
+          AppName=Steam 倒余额工具箱
+          AppVersion=${{ github.event.inputs.version }}
+          AppPublisher=SteamFlipCalculator
+          DefaultDirName={pf}\SteamFlipCalculator
+          DefaultGroupName=Steam 倒余额工具箱
+          OutputBaseFilename=SteamFlipCalculator-${{ github.event.inputs.version }}-setup
+          Compression=lzma
+          SolidCompression=yes
+          WizardStyle=modern
+          PrivilegesRequired=admin
+          ArchitecturesAllowed=x64
+          ArchitecturesInstallIn64BitMode=x64
+          MinVersion=10.0
+          OutputDir=release/installer
+          
+          [Languages]
+          Name: "chinesesimp"; MessagesFile: "compiler:Languages\ChineseSimp.isl"
+          
+          [Tasks]
+          Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: "附加图标:"; Flags: unchecked
+          Name: "quicklaunchicon"; Description: "创建快速启动图标"; GroupDescription: "附加图标:"; Flags: unchecked; OnlyBelowVersion: 6.1
+          
+          [Files]
+          Source: "release\standalone\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+          
+          [Icons]
+          Name: "{group}\Steam 倒余额工具箱"; Filename: "{app}\SteamFlipCalculator.exe"
+          Name: "{group}\使用说明"; Filename: "{app}\使用说明.txt"
+          Name: "{group}\卸载"; Filename: "{uninstallexe}"
+          Name: "{commondesktop}\Steam 倒余额工具箱"; Filename: "{app}\SteamFlipCalculator.exe"; Tasks: desktopicon
+          Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\Steam 倒余额工具箱"; Filename: "{app}\SteamFlipCalculator.exe"; Tasks: quicklaunchicon
+          
+          [Run]
+          Filename: "{app}\SteamFlipCalculator.exe"; Description: "启动 Steam 倒余额工具箱"; Flags: nowait postinstall skipifsilent
+          
+          [UninstallDelete]
+          Type: filesandordirs; Name: "{app}\data"
+          EOF
+
+      - name: Install Inno Setup
+        shell: bash
+        run: |
+          choco install innosetup -y
+
+      - name: Build installer with Inno Setup
+        shell: bash
+        run: |
+          "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" installer.iss
+
+      - name: Upload release package
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-package
+          path: |
+            release/onefile/*.exe
+            SteamFlipCalculator-*-standalone-windows.zip
+            release/installer/*.exe
+            release/使用说明.txt
+          retention-days: 30
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-package
+          path: ./release
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.event.inputs.version }}
+          name: Release ${{ github.event.inputs.version }}
+          body: ${{ github.event.inputs.release_notes }}
+          draft: false
+          prerelease: ${{ github.event.inputs.prerelease }}
+          files: |
+            release/*.zip
+            release/*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
