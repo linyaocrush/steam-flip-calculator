@@ -1,5 +1,6 @@
 import requests
 from datetime import datetime
+from decimal import Decimal, ROUND_HALF_UP
 from database import get_db, invalidate_settings_cache
 
 
@@ -18,7 +19,7 @@ def fetch_exchange_rate(base: str, target: str, force_refresh: bool = False) -> 
         cached_rate = None
         cached_time = None
         if row:
-            cached_rate = row["rate"]
+            cached_rate = float(row["rate"])
             cached_time = row["updated_at"]
         
         if not force_refresh and cached_rate is not None and cached_time is not None:
@@ -40,7 +41,8 @@ def fetch_exchange_rate(base: str, target: str, force_refresh: bool = False) -> 
         if target not in data.get("rates", {}):
             return cached_rate or 1.0, cached_time, "获取失败，使用缓存"
         
-        rate = round(data["rates"][target], 4)
+        rate_decimal = Decimal(str(data["rates"][target]))
+        rate = float(rate_decimal.quantize(Decimal('0.0001'), rounding=ROUND_HALF_UP))
         updated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
         with get_db() as conn:
