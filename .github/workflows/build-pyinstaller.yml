@@ -1,4 +1,4 @@
-name: Build with Nuitka
+name: Build with PyInstaller
 
 on:
   workflow_dispatch:
@@ -25,7 +25,7 @@ env:
 
 jobs:
   build:
-    name: Build Windows with Nuitka
+    name: Build Windows with PyInstaller
     runs-on: windows-latest
     
     steps:
@@ -41,17 +41,17 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install nuitka ordered-set zstandard
+          pip install pyinstaller
 
       - name: Build onefile version
         shell: pwsh
         run: |
-          python -m nuitka --standalone --onefile --enable-plugin=numpy --windows-console-mode=disable --output-dir=dist/onefile --output-filename=SteamFlipCalculator-OneFile.exe --include-data-dir=src=src --assume-yes-for-downloads --follow-imports --prefer-source-code src/main.py
+          pyinstaller --onefile --noconsole --name SteamFlipCalculator-OneFile --add-data "src;src" src/main.py
 
       - name: Build standalone version
         shell: pwsh
         run: |
-          python -m nuitka --standalone --enable-plugin=numpy --windows-console-mode=disable --output-dir=dist/standalone --output-filename=SteamFlipCalculator.exe --include-data-dir=src=src --assume-yes-for-downloads --follow-imports --prefer-source-code src/main.py
+          pyinstaller --noconsole --name SteamFlipCalculator --add-data "src;src" src/main.py
 
       - name: Create release directories
         shell: bash
@@ -60,58 +60,8 @@ jobs:
           mkdir -p release/standalone
           mkdir -p release/installer
           
-          cp dist/onefile/SteamFlipCalculator-OneFile.exe release/onefile/
-          cp -r dist/standalone/* release/standalone/
-          
-          # Create custom README from user input
-          if [ -n "${{ github.event.inputs.release_notes }}" ]; then
-            echo "${{ github.event.inputs.release_notes }}" > release/使用说明.txt
-          else
-            echo "# Steam 倒余额工具箱" > release/使用说明.txt
-            echo "" >> release/使用说明.txt
-            echo "版本: ${{ github.event.inputs.version }}" >> release/使用说明.txt
-            echo "" >> release/使用说明.txt
-            echo "## 下载说明" >> release/使用说明.txt
-            echo "" >> release/使用说明.txt
-            echo "本版本提供三种下载方式，请根据需求选择：" >> release/使用说明.txt
-            echo "" >> release/使用说明.txt
-            echo "### 1. 单文件版 (SteamFlipCalculator-OneFile.exe)" >> release/使用说明.txt
-            echo "- **特点**：所有功能打包在一个 exe 文件中" >> release/使用说明.txt
-            echo "- **优点**：下载方便，双击即运行，无需解压" >> release/使用说明.txt
-            echo "- **适用场景**：快速使用，不想解压文件" >> release/使用说明.txt
-            echo "- **文件大小**：较大（包含所有依赖）" >> release/使用说明.txt
-            echo "" >> release/使用说明.txt
-            echo "### 2. 绿色版 (SteamFlipCalculator-*-standalone-windows.zip)" >> release/使用说明.txt
-            echo "- **特点**：解压后直接运行，无需安装" >> release/使用说明.txt
-            echo "- **优点**：不写入注册表，可随时删除，便携性好" >> release/使用说明.txt
-            echo "- **适用场景**：U盘携带、临时使用、不想安装软件" >> release/使用说明.txt
-            echo "- **文件大小**：中等" >> release/使用说明.txt
-            echo "" >> release/使用说明.txt
-            echo "### 3. 安装版 (SteamFlipCalculator-*-setup.exe)" >> release/使用说明.txt
-            echo "- **特点**：带安装向导，支持桌面快捷方式" >> release/使用说明.txt
-            echo "- **优点**：正式安装，支持卸载，适合长期使用" >> release/使用说明.txt
-            echo "- **适用场景**：长期使用，需要快捷方式" >> release/使用说明.txt
-            echo "- **文件大小**：中等" >> release/使用说明.txt
-            echo "" >> release/使用说明.txt
-            echo "## 快速开始" >> release/使用说明.txt
-            echo "" >> release/使用说明.txt
-            echo "下载对应版本后：" >> release/使用说明.txt
-            echo "- 单文件版：双击 SteamFlipCalculator-OneFile.exe" >> release/使用说明.txt
-            echo "- 绿色版：解压后双击 SteamFlipCalculator.exe" >> release/使用说明.txt
-            echo "- 安装版：运行安装程序，按提示完成安装" >> release/使用说明.txt
-            echo "" >> release/使用说明.txt
-            echo "## 系统要求" >> release/使用说明.txt
-            echo "" >> release/使用说明.txt
-            echo "- Windows 10 或更高版本" >> release/使用说明.txt
-            echo "- 64位操作系统" >> release/使用说明.txt
-            echo "" >> release/使用说明.txt
-            echo "## 问题反馈" >> release/使用说明.txt
-            echo "" >> release/使用说明.txt
-            echo "如遇问题，请访问 GitHub 提交 Issue" >> release/使用说明.txt
-          fi
-          
-          cp release/使用说明.txt release/onefile/
-          cp release/使用说明.txt release/standalone/
+          cp dist/SteamFlipCalculator-OneFile.exe release/onefile/
+          cp -r dist/SteamFlipCalculator/* release/standalone/
 
       - name: Create standalone ZIP archive
         shell: bash
@@ -148,7 +98,6 @@ jobs:
           
           [Icons]
           Name: "{group}\Steam 倒余额工具箱"; Filename: "{app}\SteamFlipCalculator.exe"
-          Name: "{group}\使用说明"; Filename: "{app}\使用说明.txt"
           Name: "{group}\卸载"; Filename: "{uninstallexe}"
           Name: "{commondesktop}\Steam 倒余额工具箱"; Filename: "{app}\SteamFlipCalculator.exe"; Tasks: desktopicon
           Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\Steam 倒余额工具箱"; Filename: "{app}\SteamFlipCalculator.exe"; Tasks: quicklaunchicon
@@ -178,7 +127,6 @@ jobs:
             release/onefile/*.exe
             SteamFlipCalculator-*-standalone-windows.zip
             release/installer/*.exe
-            release/使用说明.txt
           retention-days: 30
 
   release:
@@ -192,7 +140,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: release-package
-          path: ./release
+          path: .
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -203,7 +151,7 @@ jobs:
           draft: false
           prerelease: ${{ github.event.inputs.prerelease }}
           files: |
-            release/*.zip
-            release/*.exe
+            *.zip
+            *.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
