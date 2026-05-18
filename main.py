@@ -88,7 +88,7 @@ def main(page: ft.Page):
                 "total_steam_sell_in_my_currency": record_data.get("total_steam_sell_in_my_currency", 0.0),
             })
 
-        success = add_record(payload)
+        success = add_record(payload, settings)
 
         if success:
             snack.content = ft.Text(t("save_success"))

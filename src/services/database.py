@@ -7,6 +7,7 @@ import os
 from typing import Optional, Dict, Any, List
 from src.config import DB_PATH, DATA_DIR
 from src.models import Settings, HistoryRecord, StatsData, Currency
+from src.services.migrations import get_migration_manager
 
 _thread_local_db = threading.local()
 
@@ -50,18 +51,11 @@ def init_db():
             total_cost REAL NOT NULL,
             total_steam_sell REAL NOT NULL,
             total_net REAL NOT NULL,
-            sell_currency TEXT NOT NULL DEFAULT 'CNY',
-            sell_currency_symbol TEXT NOT NULL DEFAULT '¥',
-            buy_currency TEXT NOT NULL DEFAULT 'CNY',
-            buy_currency_symbol TEXT NOT NULL DEFAULT '¥',
-            exchange_rate REAL NOT NULL DEFAULT 1.0,
-            my_currency TEXT NOT NULL DEFAULT 'CNY',
-            my_currency_symbol TEXT NOT NULL DEFAULT '¥',
-            total_cost_in_my_currency REAL NOT NULL DEFAULT 0,
-            total_net_in_my_currency REAL NOT NULL DEFAULT 0,
-            total_steam_sell_in_my_currency REAL NOT NULL DEFAULT 0,
             discount REAL NOT NULL DEFAULT 0,
-            ratio REAL NOT NULL DEFAULT 0
+            ratio REAL NOT NULL DEFAULT 0,
+            settings_snapshot TEXT,
+            calculation_snapshot TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
         )
         """
     )
@@ -131,6 +125,9 @@ def init_db():
     
     conn.commit()
     conn.close()
+    
+    migration_manager = get_migration_manager()
+    migration_manager.migrate()
 
 
 class CacheManager:
@@ -241,15 +238,14 @@ def save_settings(settings: Settings) -> Settings:
 
 
 def get_records(limit: int = 500) -> List[HistoryRecord]:
+    import json
     with get_db() as conn:
         cur = conn.cursor()
         cur.execute(
             """
             SELECT id, ts, item_name, COALESCE(note, '') as note,
                    unit_cost, unit_steam_sell, qty, unit_net, total_cost, total_net, total_steam_sell,
-                   sell_currency, sell_currency_symbol, buy_currency, buy_currency_symbol,
-                   exchange_rate, my_currency, my_currency_symbol,
-                   total_cost_in_my_currency, total_net_in_my_currency, total_steam_sell_in_my_currency, discount, ratio
+                   discount, ratio, settings_snapshot, calculation_snapshot
             FROM history
             ORDER BY id DESC
             LIMIT ?
@@ -260,6 +256,9 @@ def get_records(limit: int = 500) -> List[HistoryRecord]:
 
     records = []
     for row in rows:
+        settings_data = json.loads(row["settings_snapshot"]) if row["settings_snapshot"] else {}
+        calculation_data = json.loads(row["calculation_snapshot"]) if row["calculation_snapshot"] else {}
+        
         record_data = {
             "id": row["id"],
             "ts": row["ts"],
@@ -272,16 +271,16 @@ def get_records(limit: int = 500) -> List[HistoryRecord]:
             "total_cost": row["total_cost"],
             "total_steam_sell": row["total_steam_sell"],
             "total_net": row["total_net"],
-            "sell_currency": row["sell_currency"],
-            "sell_currency_symbol": row["sell_currency_symbol"],
-            "buy_currency": row["buy_currency"],
-            "buy_currency_symbol": row["buy_currency_symbol"],
-            "exchange_rate": row["exchange_rate"],
-            "my_currency": row["my_currency"],
-            "my_currency_symbol": row["my_currency_symbol"],
-            "total_cost_in_my_currency": row["total_cost_in_my_currency"],
-            "total_net_in_my_currency": row["total_net_in_my_currency"],
-            "total_steam_sell_in_my_currency": row["total_steam_sell_in_my_currency"],
+            "sell_currency": settings_data.get("sell_currency", "CNY"),
+            "sell_currency_symbol": "",
+            "buy_currency": settings_data.get("buy_currency", "CNY"),
+            "buy_currency_symbol": "",
+            "exchange_rate": settings_data.get("exchange_rate", 1.0),
+            "my_currency": settings_data.get("my_currency", "CNY"),
+            "my_currency_symbol": "",
+            "total_cost_in_my_currency": calculation_data.get("total_cost_in_my_currency", 0.0),
+            "total_net_in_my_currency": calculation_data.get("total_net_in_my_currency", 0.0),
+            "total_steam_sell_in_my_currency": calculation_data.get("total_steam_sell_in_my_currency", 0.0),
             "discount": row["discount"],
             "ratio": row["ratio"] if "ratio" in row.keys() else 0.0
         }
@@ -290,41 +289,37 @@ def get_records(limit: int = 500) -> List[HistoryRecord]:
     return records
 
 
-def add_record(record: HistoryRecord) -> bool:
+def add_record(record: HistoryRecord, settings: Settings) -> bool:
+    import json
     with get_db() as conn:
         cur = conn.cursor()
-        cur.execute("SELECT sell_currency, sell_currency_symbol, buy_currency, buy_currency_symbol, my_currency, my_currency_symbol, exchange_rate FROM settings WHERE id = 1")
-        row = cur.fetchone()
-        sell_currency = row["sell_currency"] if row else "CNY"
-        sell_currency_symbol = row["sell_currency_symbol"] if row else "¥"
-        buy_currency = row["buy_currency"] if row else "CNY"
-        buy_currency_symbol = row["buy_currency_symbol"] if row else "¥"
-        my_currency = row["my_currency"] if row else "CNY"
-        my_currency_symbol = row["my_currency_symbol"] if row else "¥"
-        exchange_rate = row["exchange_rate"] if row else 1.0
         
         ts = record.ts or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        settings_snapshot = json.dumps({
+            "sell_currency": settings.sell_currency,
+            "buy_currency": settings.buy_currency,
+            "my_currency": settings.my_currency,
+            "exchange_rate": settings.exchange_rate,
+            "steam_fee_rate": settings.steam_fee_rate
+        })
+        
+        calculation_snapshot = json.dumps({
+            "total_cost_in_my_currency": record.total_cost_in_my_currency,
+            "total_net_in_my_currency": record.total_net_in_my_currency,
+            "total_steam_sell_in_my_currency": record.total_steam_sell_in_my_currency
+        })
 
         cur.execute(
             """
             INSERT INTO history (ts, item_name, note, unit_cost, unit_steam_sell,
                                 qty, unit_net, total_cost, total_steam_sell, total_net,
-                                sell_currency, sell_currency_symbol,
-                                buy_currency, buy_currency_symbol,
-                                exchange_rate,
-                                my_currency, my_currency_symbol,
-                                total_cost_in_my_currency, total_net_in_my_currency,
-                                total_steam_sell_in_my_currency, discount, ratio)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                discount, ratio, settings_snapshot, calculation_snapshot)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (ts, record.item_name, record.note, record.unit_cost, record.unit_steam_sell, record.qty,
              record.unit_net, record.total_cost, record.total_steam_sell, record.total_net,
-             sell_currency, sell_currency_symbol,
-             buy_currency, buy_currency_symbol,
-             exchange_rate,
-             my_currency, my_currency_symbol,
-             record.total_cost_in_my_currency, record.total_net_in_my_currency,
-             record.total_steam_sell_in_my_currency, record.discount, record.ratio),
+             record.discount, record.ratio, settings_snapshot, calculation_snapshot),
         )
 
     invalidate_stats_cache()
@@ -350,6 +345,7 @@ def clear_records() -> bool:
 
 
 def get_stats() -> StatsData:
+    import json
     if _stats_cache.is_valid():
         return _stats_cache.get()
 
@@ -365,22 +361,37 @@ def get_stats() -> StatsData:
             """
             SELECT 
                 COUNT(*) as count,
-                SUM(total_cost_in_my_currency) as total_cost,
-                SUM(total_net_in_my_currency) as total_net,
-                SUM(total_steam_sell_in_my_currency) as total_sell,
-                SUM(qty) as total_qty
+                SUM(total_cost) as total_cost,
+                SUM(total_net) as total_net,
+                SUM(total_steam_sell) as total_sell,
+                SUM(qty) as total_qty,
+                calculation_snapshot
             FROM history
             """
         )
-        row = cur.fetchone()
+        rows = cur.fetchall()
         
-        if row and row["count"] > 0:
+        total_cost_in_my = 0.0
+        total_net_in_my = 0.0
+        total_sell_in_my = 0.0
+        
+        for row in rows:
+            if row["calculation_snapshot"]:
+                try:
+                    calc_data = json.loads(row["calculation_snapshot"])
+                    total_cost_in_my += calc_data.get("total_cost_in_my_currency", 0.0)
+                    total_net_in_my += calc_data.get("total_net_in_my_currency", 0.0)
+                    total_sell_in_my += calc_data.get("total_steam_sell_in_my_currency", 0.0)
+                except:
+                    pass
+        
+        if rows and rows[0]["count"] > 0:
             stats_data = {
-                "total_cost": row["total_cost"] or 0.0,
-                "total_net": row["total_net"] or 0.0,
-                "total_sell": row["total_sell"] or 0.0,
-                "total_qty": row["total_qty"] or 0,
-                "avg_ratio": (row["total_net"] / row["total_cost"]) if row["total_cost"] > 0 else 0.0,
+                "total_cost": total_cost_in_my,
+                "total_net": total_net_in_my,
+                "total_sell": total_sell_in_my,
+                "total_qty": rows[0]["total_qty"] or 0,
+                "avg_ratio": (total_net_in_my / total_cost_in_my) if total_cost_in_my > 0 else 0.0,
                 "avg_discount": 0.0
             }
             

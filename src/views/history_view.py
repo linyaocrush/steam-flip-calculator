@@ -1,5 +1,6 @@
 import flet as ft
 from src.utils import money, pct
+from src.config import CURRENCY_SYMBOLS
 
 
 def create_history_view(settings, snack, t):
@@ -24,6 +25,9 @@ def create_history_view(settings, snack, t):
     )
 
     def row_for_record(record, refresh_callback):
+        buy_symbol = CURRENCY_SYMBOLS.get(record.buy_currency, "¥")
+        sell_symbol = CURRENCY_SYMBOLS.get(record.sell_currency, "¥")
+        
         return ft.DataRow(
             cells=[
                 ft.DataCell(ft.Text(record.ts, size=11)),
@@ -37,11 +41,11 @@ def create_history_view(settings, snack, t):
                         ],
                     )
                 ),
-                ft.DataCell(ft.Text(f"{record.buy_currency_symbol} {money(record.unit_cost)}", size=11)),
-                ft.DataCell(ft.Text(f"{record.sell_currency_symbol} {money(record.unit_steam_sell)}", size=11)),
-                ft.DataCell(ft.Text(f"{record.sell_currency_symbol} {money(record.unit_net)}", size=11)),
-                ft.DataCell(ft.Text(f"{record.buy_currency_symbol} {money(record.total_cost)}", size=11)),
-                ft.DataCell(ft.Text(f"{record.sell_currency_symbol} {money(record.total_net)}", size=11)),
+                ft.DataCell(ft.Text(f"{buy_symbol} {money(record.unit_cost)}", size=11)),
+                ft.DataCell(ft.Text(f"{sell_symbol} {money(record.unit_steam_sell)}", size=11)),
+                ft.DataCell(ft.Text(f"{sell_symbol} {money(record.unit_net)}", size=11)),
+                ft.DataCell(ft.Text(f"{buy_symbol} {money(record.total_cost)}", size=11)),
+                ft.DataCell(ft.Text(f"{sell_symbol} {money(record.total_net)}", size=11)),
                 ft.DataCell(ft.Text(pct(record.ratio), size=11)),
                 ft.DataCell(ft.Text(pct(record.discount), size=11)),
                 ft.DataCell(
@@ -56,7 +60,7 @@ def create_history_view(settings, snack, t):
         )
 
     def delete_record(record_id, refresh_callback):
-        from database import delete_record as db_delete_record
+        from src.services.database import delete_record as db_delete_record
         
         def yes(_):
             success = db_delete_record(record_id)
