@@ -1,0 +1,288 @@
+name: AI Code Analysis
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+    inputs:
+      analysis_type:
+        description: 'Analysis type'
+        required: false
+        type: choice
+        options:
+          - full
+          - quick
+        default: 'quick'
+      api_provider:
+        description: 'LLM API Provider'
+        required: false
+        type: choice
+        options:
+          - openai
+          - anthropic
+          - azure
+          - custom
+        default: 'openai'
+      model_name:
+        description: 'Model name (e.g., gpt-4o-mini, claude-3-haiku)'
+        required: false
+        type: string
+        default: 'gpt-4o-mini'
+
+jobs:
+  analyze-code:
+    name: Analyze Code Changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v45
+        with:
+          files_separator: ','
+          files: |
+            **/*.py
+            **/*.toml
+            **/*.txt
+            **/*.md
+
+      - name: Show changed files
+        run: |
+          echo "Changed files: ${{ steps.changed-files.outputs.all_changed_files }}"
+          echo "Added files: ${{ steps.changed-files.outputs.added_files }}"
+          echo "Modified files: ${{ steps.changed-files.outputs.modified_files }}"
+          echo "Deleted files: ${{ steps.changed-files.outputs.deleted_files }}"
+
+      - name: Get commit message
+        id: commit-info
+        run: |
+          COMMIT_MESSAGE=$(git log -1 --pretty=%B)
+          echo "message<<EOF" >> $GITHUB_OUTPUT
+          echo "$COMMIT_MESSAGE" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          COMMIT_SHA=$(git rev-parse HEAD)
+          echo "sha=$COMMIT_SHA" >> $GITHUB_OUTPUT
+          
+          COMMIT_AUTHOR=$(git log -1 --pretty=%an)
+          echo "author=$COMMIT_AUTHOR" >> $GITHUB_OUTPUT
+
+      - name: Get diff content
+        id: diff-content
+        run: |
+          if [ "${{ steps.changed-files.outputs.any_changed }}" == "true" ]; then
+            DIFF_CONTENT=$(git diff HEAD~1 HEAD -- ${{ steps.changed-files.outputs.all_changed_files }})
+            echo "diff<<EOF" >> $GITHUB_OUTPUT
+            echo "$DIFF_CONTENT" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "diff=No changes detected" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Analyze with LLM
+        id: llm-analysis
+        env:
+          API_KEY: ${{ secrets.LLM_API_KEY }}
+          AZURE_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CUSTOM_API_KEY: ${{ secrets.CUSTOM_LLM_API_KEY }}
+        run: |
+          API_PROVIDER="${{ github.event.inputs.api_provider || 'openai' }}"
+          MODEL_NAME="${{ github.event.inputs.model_name || 'gpt-4o-mini' }}"
+          
+          case "$API_PROVIDER" in
+            openai)
+              API_KEY="$API_KEY"
+              API_URL="https://api.openai.com/v1/chat/completions"
+              ;;
+            anthropic)
+              API_KEY="$ANTHROPIC_API_KEY"
+              API_URL="https://api.anthropic.com/v1/messages"
+              ;;
+            azure)
+              API_KEY="$AZURE_API_KEY"
+              API_URL="${{ secrets.AZURE_OPENAI_ENDPOINT }}/openai/deployments/${MODEL_NAME}/chat/completions?api-version=2024-02-15-preview"
+              ;;
+            custom)
+              API_KEY="$CUSTOM_API_KEY"
+              API_URL="${{ secrets.CUSTOM_LLM_ENDPOINT }}"
+              ;;
+            *)
+              echo "Error: Unknown API provider: $API_PROVIDER"
+              exit 1
+              ;;
+          esac
+          
+          if [ -z "$API_KEY" ]; then
+            echo "Error: API key not found for provider: $API_PROVIDER"
+            echo "Please configure the appropriate secret in GitHub repository settings"
+            exit 1
+          fi
+          
+          echo "Using API provider: $API_PROVIDER"
+          echo "Using model: $MODEL_NAME"
+          
+          cat > analysis_prompt.txt << 'EOF'
+          你是一个专业的代码审查专家和产品经理。请分析以下代码变更，并提供功能建议和改进意见。
+
+          项目信息：
+          - 项目名称：Steam 倒余额工具箱
+          - 项目描述：基于 Flet 的 Steam 市场倒余额计算工具
+          - 技术栈：Python, Flet, SQLite, Pydantic, Requests
+
+          变更信息：
+          - 提交信息：${{ steps.commit-info.outputs.message }}
+          - 提交作者：${{ steps.commit-info.outputs.author }}
+          - 变更文件：${{ steps.changed-files.outputs.all_changed_files }}
+
+          代码变更：
+          ${{ steps.diff-content.outputs.diff }}
+
+          请提供以下分析（使用Markdown格式）：
+          1. 代码变更总结
+          2. 潜在的功能建议
+          3. 代码质量改进建议
+          4. 可能的Bug或风险点
+          5. 性能优化建议
+          6. 用户体验改进建议
+
+          请用中文回答，保持专业和建设性。
+          EOF
+
+          echo "Calling LLM API..."
+          
+          case "$API_PROVIDER" in
+            openai|azure)
+              RESPONSE=$(curl -s "$API_URL" \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer $API_KEY" \
+                -d '{
+                  "model": "'"$MODEL_NAME"'",
+                  "messages": [
+                    {"role": "system", "content": "你是一个专业的代码审查专家和产品经理。"},
+                    {"role": "user", "content": "'"$(cat analysis_prompt.txt | sed 's/"/\\"/g' | tr '\n' ' ')"'"}
+                  ],
+                  "max_tokens": 2000,
+                  "temperature": 0.7
+                }')
+              ;;
+            anthropic)
+              RESPONSE=$(curl -s "$API_URL" \
+                -H "Content-Type: application/json" \
+                -H "x-api-key: $API_KEY" \
+                -H "anthropic-version: 2023-06-01" \
+                -d '{
+                  "model": "'"$MODEL_NAME"'",
+                  "max_tokens": 2000,
+                  "system": "你是一个专业的代码审查专家和产品经理。",
+                  "messages": [
+                    {"role": "user", "content": "'"$(cat analysis_prompt.txt | sed 's/"/\\"/g' | tr '\n' ' ')"'"}
+                  ]
+                }')
+              ;;
+            custom)
+              RESPONSE=$(curl -s "$API_URL" \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer $API_KEY" \
+                -d '{
+                  "model": "'"$MODEL_NAME"'",
+                  "messages": [
+                    {"role": "system", "content": "你是一个专业的代码审查专家和产品经理。"},
+                    {"role": "user", "content": "'"$(cat analysis_prompt.txt | sed 's/"/\\"/g' | tr '\n' ' ')"'"}
+                  ],
+                  "max_tokens": 2000,
+                  "temperature": 0.7
+                }')
+              ;;
+          esac
+          
+          echo "response<<EOF" >> $GITHUB_OUTPUT
+          echo "$RESPONSE" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Extract analysis content
+        id: extract-content
+        run: |
+          RESPONSE="${{ steps.llm-analysis.outputs.response }}"
+          ANALYSIS=$(echo "$RESPONSE" | jq -r '.choices[0].message.content')
+          
+          echo "analysis<<EOF" >> $GITHUB_OUTPUT
+          echo "$ANALYSIS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "Analysis completed successfully"
+
+      - name: Create Issue with analysis
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const analysis = `${{ steps.extract-content.outputs.analysis }}`;
+            const commitSha = '${{ steps.commit-info.outputs.sha }}';
+            const commitMessage = `${{ steps.commit-info.outputs.message }}`;
+            const changedFiles = '${{ steps.changed-files.outputs.all_changed_files }}';
+            
+            const issueTitle = `🤖 AI 代码分析 - ${commitSha.substring(0, 7)}`;
+            
+            const issueBody = `
+            ## 📊 代码变更分析
+            
+            **提交信息：** ${commitMessage}
+            **提交哈希：** ${commitSha}
+            **变更文件：** ${changedFiles}
+            
+            ---
+            
+            ${analysis}
+            
+            ---
+            
+            *此Issue由AI自动生成，请人工审核后决定是否采纳建议。*
+            `;
+            
+            // Check if similar issue already exists
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'ai-analysis'
+            });
+            
+            const existingIssue = issues.data.find(issue => 
+              issue.title.includes(commitSha.substring(0, 7))
+            );
+            
+            if (existingIssue) {
+              console.log('Issue already exists, updating...');
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existingIssue.number,
+                body: issueBody
+              });
+            } else {
+              console.log('Creating new issue...');
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: issueTitle,
+                body: issueBody,
+                labels: ['ai-analysis', 'enhancement']
+              });
+            }
+
+      - name: Comment on analysis result
+        if: success()
+        run: |
+          echo "✅ AI代码分析完成"
+          echo "📝 分析结果已发布到Issues"
+          echo "🔗 请查看项目Issues页面查看详细分析"
