@@ -1,16 +1,21 @@
 # Steam 倒余额工具箱
+ ![visitors](https://visitor-badge.laobi.icu/badge?page_id=linyaocrush/steam-flip-calculator)
+ ![GitHub License](https://img.shields.io/github/license/linyaocrush/steam-flip-calculator)
+ ![GitHub last commit](https://img.shields.io/github/last-commit/linyaocrush/steam-flip-calculator)
+ ![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)
 
-一个基于 Flet 的 Steam 市场倒余额计算工具，帮助您计算 Steam 市场交易的利润、折扣和汇率转换。
+一个基于 Flet 的 Steam 市场倒余额计算工具，帮助您计算 Steam 市场交易的利润、折扣和汇率转换。采用 Google MD3 风格设计，带有毛玻璃效果。
 
 ## 功能特性
 
 - 🧮 **计算器**：计算 Steam 市场交易的利润和折扣率
-- 📊 **历史记录**：保存和管理交易记录
+- 📊 **历史记录**：保存和管理交易记录，支持倒余额比例显示
 - 📈 **统计汇总**：查看整体交易统计信息
 - ⚙️ **多语言支持**：支持中文、英文、日文界面
 - 🌍 **多货币支持**：支持 10 种主流货币
-- 💱 **自动汇率**：自动获取实时汇率（12小时缓存）
-- 🌓 **主题切换**：支持浅色/深色主题
+- 💱 **自动汇率**：自动获取实时汇率
+- 🌙 **深色主题**：采用深色模式设计
+- ✨ **毛玻璃效果**：现代化的玻璃拟态 UI 设计
 
 ## 支持的货币
 
@@ -77,7 +82,7 @@
 - 查看所有保存的交易记录
 - 支持删除单条记录
 - 支持清空全部记录
-- 显示每条记录的详细信息
+- 显示每条记录的详细信息，包括倒余额比例
 
 ### 统计
 
@@ -91,7 +96,6 @@
 - **卖出货币**：Steam 市场所在区域的货币
 - **汇率**：自动获取或手动设置汇率
 - **手续费率**：Steam 市场手续费（默认 15%）
-- **主题模式**：选择浅色或深色主题
 - **我的货币**：价格显示时自动转换的货币
 - **语言**：选择界面显示语言
 
@@ -99,24 +103,31 @@
 
 ```
 steam-flip-calculator/
-├── main.py              # 主程序入口
-├── calculator.py        # 计算逻辑
-├── database.py          # 数据库操作
-├── exchange_rate.py     # 汇率获取
-├── config.py            # 配置和常量
-├── i18n.py              # 国际化翻译
-├── utils.py             # 工具函数
-├── views.py             # UI 视图组件
-├── requirements.txt     # 依赖列表
-├── start.bat            # Windows 启动脚本
-├── steam_flip.db        # SQLite 数据库（运行后生成）
-└── README.md            # 项目说明
+├── main.py                  # 主程序入口
+├── calculator.py            # 计算逻辑
+├── database.py              # 数据库操作
+├── exchange_rate.py         # 汇率获取
+├── config.py                # 配置和常量
+├── i18n.py                  # 国际化翻译
+├── utils.py                 # 工具函数
+├── models.py                # Pydantic 数据模型
+├── glassmorphism.py         # 毛玻璃效果组件
+├── views/
+│   ├── calculator_view.py   # 计算器视图
+│   ├── history_view.py      # 历史记录视图
+│   ├── stats_view.py        # 统计视图
+│   └── settings_view.py     # 设置视图
+├── data/
+│   └── steam_flip.db        # SQLite 数据库（运行后自动生成）
+├── requirements.txt         # 依赖列表
+└── README.md                # 项目说明
 ```
 
 ## 技术栈
 
 - **Flet**：跨平台 UI 框架
 - **SQLite**：本地数据存储
+- **Pydantic**：数据验证和模型
 - **Requests**：HTTP 请求（获取汇率）
 
 ## 汇率数据
@@ -130,3 +141,4 @@ steam-flip-calculator/
 ## 贡献
 
 欢迎提交 Issue 和 Pull Request！
+

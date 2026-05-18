@@ -243,12 +243,12 @@ def main(page: ft.Page):
         snack.open = True
         page.update()
 
-        rate, updated_at, message = fetch_exchange_rate(buy_code, sell_code)
+        rate, updated_at, message = fetch_exchange_rate(buy_code, sell_code, force_refresh=True)
         
         if "成功" in message:
             tf_exchange_rate.value = str(rate)
             snack.content = ft.Text(t("rate_success", base=buy_code, target=sell_code, rate=rate))
-            mark_unsaved()
+            settings_ui["mark_unsaved"]()
         else:
             snack.content = ft.Text(t("rate_failed"))
         snack.open = True

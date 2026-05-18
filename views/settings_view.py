@@ -98,14 +98,42 @@ def create_settings_view(settings, snack, t, page):
         ),
     )
     
-    save_status_text = ft.Text(t("unsaved"), color=ft.Colors.RED, size=12)
+    save_status_text = ft.Text(t("saved"), color=ft.Colors.GREEN, size=12)
     
     _unsaved_changes = False
+    
+    original_settings = {
+        "buy_currency": settings.buy_currency,
+        "sell_currency": settings.sell_currency,
+        "exchange_rate": settings.exchange_rate,
+        "steam_fee_rate": settings.steam_fee_rate,
+        "my_currency": settings.my_currency,
+        "language": settings.language,
+    }
+
+    def check_changes():
+        current_exchange_rate = safe_float(tf_exchange_rate.value)
+        current_fee_rate = safe_float(tf_fee_rate.value) / 100.0
+        
+        has_changes = (
+            tf_buy_currency.value != original_settings["buy_currency"] or
+            tf_sell_currency.value != original_settings["sell_currency"] or
+            current_exchange_rate != original_settings["exchange_rate"] or
+            current_fee_rate != original_settings["steam_fee_rate"] or
+            dd_my_currency.value != original_settings["my_currency"] or
+            dd_language.value != original_settings["language"]
+        )
+        
+        return has_changes
 
     def mark_unsaved():
         nonlocal _unsaved_changes
-        _unsaved_changes = True
-        update_save_status(False)
+        if check_changes():
+            _unsaved_changes = True
+            update_save_status(False)
+        else:
+            _unsaved_changes = False
+            update_save_status(True)
 
     def update_save_status(saved):
         if saved:
