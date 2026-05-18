@@ -46,12 +46,12 @@ jobs:
       - name: Build onefile version
         shell: pwsh
         run: |
-          python -m nuitka --standalone --onefile --enable-plugin=numpy --windows-console-mode=disable --output-dir=dist/onefile --output-filename=SteamFlipCalculator-OneFile.exe --include-data-dir=src=src --include-data-dir=data=data --assume-yes-for-downloads --follow-imports --prefer-source-code src/main.py
+          python -m nuitka --standalone --onefile --enable-plugin=numpy --windows-console-mode=disable --output-dir=dist/onefile --output-filename=SteamFlipCalculator-OneFile.exe --include-data-dir=src=src --assume-yes-for-downloads --follow-imports --prefer-source-code src/main.py
 
       - name: Build standalone version
         shell: pwsh
         run: |
-          python -m nuitka --standalone --enable-plugin=numpy --windows-console-mode=disable --output-dir=dist/standalone --output-filename=SteamFlipCalculator.exe --include-data-dir=src=src --include-data-dir=data=data --assume-yes-for-downloads --follow-imports --prefer-source-code src/main.py
+          python -m nuitka --standalone --enable-plugin=numpy --windows-console-mode=disable --output-dir=dist/standalone --output-filename=SteamFlipCalculator.exe --include-data-dir=src=src --assume-yes-for-downloads --follow-imports --prefer-source-code src/main.py
 
       - name: Create release directories
         shell: bash
