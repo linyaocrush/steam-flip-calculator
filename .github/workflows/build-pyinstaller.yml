@@ -42,16 +42,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller
+          pip install flet-desktop
 
       - name: Build onefile version
         shell: pwsh
         run: |
-          pyinstaller --onefile --noconsole --name SteamFlipCalculator-OneFile --add-data "src;src" --collect-all flet --collect-all flet_desktop src/main.py
+          pyinstaller --onefile --noconsole --name SteamFlipCalculator-OneFile --add-data "src;src" --collect-all flet --collect-all flet_desktop --collect-all flet_desktop.window --collect-all flet_desktop.window_manager --hidden-import=sys --hidden-import=exit --hidden-import=builtins src/main.py
 
       - name: Build standalone version
         shell: pwsh
         run: |
-          pyinstaller --noconsole --name SteamFlipCalculator --add-data "src;src" --collect-all flet --collect-all flet_desktop src/main.py
+          pyinstaller --noconsole --name SteamFlipCalculator --add-data "src;src" --collect-all flet --collect-all flet_desktop --collect-all flet_desktop.window --collect-all flet_desktop.window_manager --hidden-import=sys --hidden-import=exit --hidden-import=builtins src/main.py
 
       - name: Create release directories
         shell: bash
