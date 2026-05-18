@@ -108,6 +108,25 @@ def create_calculator_view(settings, on_add_to_history, t):
         
         return f"{currency_symbol} {money(amount)} ({my_symbol} {money(converted)})"
 
+    def format_cost(amount_in_sell_currency: float):
+        """
+        成本类金额（总花费/需要花费）优先按"我的货币"显示：
+        - 若 buy_currency == my_currency：直接显示 my_currency（不再显示 sell_currency + 括号）
+        - 否则：沿用原来的 format_price 逻辑（卖出币种为主，括号里我的币种）
+        """
+        my_currency = settings.my_currency
+        my_symbol = settings.my_currency_symbol
+
+        if settings.buy_currency == my_currency:
+            if settings.buy_currency != settings.sell_currency:
+                exchange_rate = settings.exchange_rate
+                amount_in_my = amount_in_sell_currency / exchange_rate
+            else:
+                amount_in_my = amount_in_sell_currency
+            return f"{my_symbol} {money(amount_in_my)}"
+
+        return format_price(amount_in_sell_currency, settings.sell_currency_symbol, settings.sell_currency)
+
     def recalc(_=None):
         unit_cost = safe_float(tf_cost.value)
         unit_sell = safe_float(tf_steam_sell.value)
@@ -128,7 +147,7 @@ def create_calculator_view(settings, on_add_to_history, t):
         )
 
         out_unit_net.value = format_price(data.unit_net, settings.sell_currency_symbol, settings.sell_currency)
-        out_total_cost.value = format_price(data.total_cost, settings.sell_currency_symbol, settings.sell_currency)
+        out_total_cost.value = format_cost(data.total_cost)
         out_total_net.value = format_price(data.total_net, settings.sell_currency_symbol, settings.sell_currency)
         out_ratio.value = f"{pct(data.ratio)} ({t('ratio_desc')})"
         out_discount.value = f"{pct(data.discount)}"
@@ -159,7 +178,7 @@ def create_calculator_view(settings, on_add_to_history, t):
             required_cost_display = required_cost
         
         out_required_qty.value = str(required_qty)
-        out_required_cost.value = format_price(required_cost_display, settings.sell_currency_symbol, settings.sell_currency)
+        out_required_cost.value = format_cost(required_cost_display)
 
     def on_add(_):
         item_name = (tf_item.value or "").strip()
