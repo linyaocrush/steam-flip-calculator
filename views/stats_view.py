@@ -46,7 +46,6 @@ def create_stats_view(settings, t):
 
     def update_stats(stats):
         if stats:
-            # 使用统计数据中返回的我的货币符号（数据库中已转换好）
             my_currency_symbol = stats.get('my_currency_symbol', settings.get('my_currency_symbol', '¥'))
             st_total_cost.value = f"{my_currency_symbol} {money(stats['total_cost'])}"
             st_total_net.value = f"{my_currency_symbol} {money(stats['total_net'])}"

@@ -1,5 +1,3 @@
-API_BASE_URL = "http://localhost:5000/api"
-
 CURRENCIES = [
     {"code": "CNY", "name": "人民币", "symbol": "¥"},
     {"code": "USD", "name": "美元", "symbol": "$"},
@@ -16,3 +14,20 @@ CURRENCIES = [
 CURRENCY_CODES = [c["code"] for c in CURRENCIES]
 CURRENCY_SYMBOLS = {c["code"]: c["symbol"] for c in CURRENCIES}
 CURRENCY_NAMES = {c["code"]: c["name"] for c in CURRENCIES}
+
+DEFAULT_SETTINGS = {
+    "buy_currency": "CNY",
+    "buy_currency_symbol": "¥",
+    "sell_currency": "CNY",
+    "sell_currency_symbol": "¥",
+    "exchange_rate": 1.0,
+    "steam_fee_rate": 0.15,
+    "theme_mode": "LIGHT",
+    "my_currency": "CNY",
+    "my_currency_symbol": "¥",
+    "exchange_rate_updated_at": None,
+    "language": "zh",
+}
+
+DB_PATH = "steam_flip.db"
+CACHE_TTL = 5

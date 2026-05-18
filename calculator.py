@@ -2,10 +2,8 @@ def calculate_local(unit_cost, unit_sell, qty, use_exchange, exchange_rate, fee_
     net_rate = 1.0 - fee_rate
     unit_net = unit_sell * net_rate
 
-    # 原始金额（买入货币）
     total_cost_buy = unit_cost * qty
     
-    # 如果使用汇率，转换为售出货币
     if use_exchange:
         total_cost = total_cost_buy * exchange_rate
     else:
@@ -21,21 +19,17 @@ def calculate_local(unit_cost, unit_sell, qty, use_exchange, exchange_rate, fee_
     else:
         need_sell = (unit_cost / net_rate) if net_rate > 0 else 0.0
     
-    # 计算转换为我的货币的金额
-    total_cost_in_my = total_cost_buy  # 成本已经是买入货币
+    total_cost_in_my = total_cost_buy
     total_net_in_my = total_net
     total_steam_sell_in_my = total_steam_sell
     
     if use_exchange and my_currency:
         if my_currency == buy_currency:
-            # 我的货币是买入货币，需要将售出货币转换为买入货币
             total_net_in_my = total_net / exchange_rate
             total_steam_sell_in_my = total_steam_sell / exchange_rate
         elif my_currency == sell_currency:
-            # 我的货币是售出货币，金额已经是正确的
             pass
         else:
-            # 默认情况
             total_net_in_my = total_net
             total_steam_sell_in_my = total_steam_sell
 

@@ -96,11 +96,6 @@ TRANSLATIONS = {
         
         "fetch_rate": "获取汇率",
         
-        "loading": "正在连接后端服务...",
-        "loading_success": "连接成功！正在初始化...",
-        "loading_failed": "连接失败",
-        "connection_error": "无法连接到后端服务，请确保后端已启动\n服务地址: http://localhost:5000",
-        
         "error_empty_item": "请填写物品名称",
         "error_invalid_price": "单价必须大于 0",
         "error_same_currency": "买入货币和卖出货币相同，无需汇率",
@@ -207,11 +202,6 @@ TRANSLATIONS = {
         
         "fetch_rate": "Fetch Rate",
         
-        "loading": "Connecting to backend...",
-        "loading_success": "Connected! Initializing...",
-        "loading_failed": "Connection Failed",
-        "connection_error": "Unable to connect to backend service. Please ensure backend is running.\nService: http://localhost:5000",
-        
         "error_empty_item": "Please enter item name",
         "error_invalid_price": "Price must be greater than 0",
         "error_same_currency": "Buy and sell currencies are the same, no exchange rate needed",
@@ -311,11 +301,6 @@ TRANSLATIONS = {
         "unsaved": "未保存",
         
         "fetch_rate": "レート取得",
-        
-        "loading": "バックエンドに接続中...",
-        "loading_success": "接続成功！初期化中...",
-        "loading_failed": "接続失敗",
-        "connection_error": "バックエンドサービスに接続できません。バックエンドが実行中であることを確認してください。\nサービス: http://localhost:5000",
         
         "error_empty_item": "アイテム名を入力してください",
         "error_invalid_price": "価格は0より大きくなければなりません",

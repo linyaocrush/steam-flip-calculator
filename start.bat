@@ -1,15 +1,13 @@
 @echo off
-chcp 65001 >nul
+cd /d "%~dp0"
 set VENV_DIR=venv
 
-echo 启动 Steam 倒余额工具箱 (FastAPI + Flet)...
+if not exist "%VENV_DIR%\Scripts\python.exe" (
+    echo 虚拟环境不存在，正在创建...
+    python -m venv %VENV_DIR%
+    echo 虚拟环境创建完成，正在安装依赖...
+    %VENV_DIR%\Scripts\python.exe -m pip install -r requirements.txt
+)
 
-echo 启动后端服务 (FastAPI + Uvicorn)...
-start cmd /k "cd backend && ..\%VENV_DIR%\Scripts\python.exe -m uvicorn main:app --host 0.0.0.0 --port 5000 --reload"
-
-echo 等待后端服务启动...
-timeout /t 3 /nobreak >nul
-
-echo 启动前端应用 (Flet)...
-cd frontend
-..\%VENV_DIR%\Scripts\python.exe app.py
+%VENV_DIR%\Scripts\python.exe main.py
+pause
