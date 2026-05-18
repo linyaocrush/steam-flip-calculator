@@ -1,10 +1,6 @@
 name: AI Code Analysis
 
 on:
-  push:
-    branches:
-      - main
-      - develop
   workflow_dispatch:
     inputs:
       analysis_type:
