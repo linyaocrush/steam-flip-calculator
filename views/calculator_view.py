@@ -1,11 +1,33 @@
 import flet as ft
 from utils import money, pct, safe_float, safe_int
 from calculator import calculate_local
+from glassmorphism import create_glass_card, get_glassmorphism_style
 
 
 def create_calculator_view(settings, on_add_to_history, t):
-    tf_item = ft.TextField(label=t("item_name"), value="CS2 刀/皮肤", expand=True)
-    tf_note = ft.TextField(label=t("note"), expand=True)
+    is_dark = settings.get("theme_mode") == "DARK"
+    
+    tf_item = ft.TextField(
+        label=t("item_name"), 
+        value="CS2 刀/皮肤", 
+        expand=True,
+        filled=True,
+        bgcolor=ft.Colors.with_opacity(0.3 if is_dark else 0.5, ft.Colors.SURFACE),
+        border_color=ft.Colors.with_opacity(0.2, ft.Colors.WHITE if is_dark else ft.Colors.BLACK),
+        focused_border_color=ft.Colors.with_opacity(0.5, ft.Colors.INDIGO),
+        border_radius=12,
+        content_padding=12,
+    )
+    tf_note = ft.TextField(
+        label=t("note"), 
+        expand=True,
+        filled=True,
+        bgcolor=ft.Colors.with_opacity(0.3 if is_dark else 0.5, ft.Colors.SURFACE),
+        border_color=ft.Colors.with_opacity(0.2, ft.Colors.WHITE if is_dark else ft.Colors.BLACK),
+        focused_border_color=ft.Colors.with_opacity(0.5, ft.Colors.INDIGO),
+        border_radius=12,
+        content_padding=12,
+    )
 
     tf_cost = ft.TextField(
         label=t("cost"),
@@ -13,6 +35,12 @@ def create_calculator_view(settings, on_add_to_history, t):
         prefix=ft.Text(settings["buy_currency_symbol"]),
         keyboard_type=ft.KeyboardType.NUMBER,
         expand=True,
+        filled=True,
+        bgcolor=ft.Colors.with_opacity(0.3 if is_dark else 0.5, ft.Colors.SURFACE),
+        border_color=ft.Colors.with_opacity(0.2, ft.Colors.WHITE if is_dark else ft.Colors.BLACK),
+        focused_border_color=ft.Colors.with_opacity(0.5, ft.Colors.INDIGO),
+        border_radius=12,
+        content_padding=12,
     )
     tf_steam_sell = ft.TextField(
         label=t("steam_sell"),
@@ -20,12 +48,24 @@ def create_calculator_view(settings, on_add_to_history, t):
         prefix=ft.Text(settings["sell_currency_symbol"]),
         keyboard_type=ft.KeyboardType.NUMBER,
         expand=True,
+        filled=True,
+        bgcolor=ft.Colors.with_opacity(0.3 if is_dark else 0.5, ft.Colors.SURFACE),
+        border_color=ft.Colors.with_opacity(0.2, ft.Colors.WHITE if is_dark else ft.Colors.BLACK),
+        focused_border_color=ft.Colors.with_opacity(0.5, ft.Colors.INDIGO),
+        border_radius=12,
+        content_padding=12,
     )
     tf_qty = ft.TextField(
         label=t("quantity"),
         value="1",
         keyboard_type=ft.KeyboardType.NUMBER,
         width=120,
+        filled=True,
+        bgcolor=ft.Colors.with_opacity(0.3 if is_dark else 0.5, ft.Colors.SURFACE),
+        border_color=ft.Colors.with_opacity(0.2, ft.Colors.WHITE if is_dark else ft.Colors.BLACK),
+        focused_border_color=ft.Colors.with_opacity(0.5, ft.Colors.INDIGO),
+        border_radius=12,
+        content_padding=12,
     )
 
     out_unit_net = ft.Text(value="-")
@@ -42,6 +82,12 @@ def create_calculator_view(settings, on_add_to_history, t):
         keyboard_type=ft.KeyboardType.NUMBER,
         expand=True,
         hint_text=t("target_amount_desc"),
+        filled=True,
+        bgcolor=ft.Colors.with_opacity(0.3 if is_dark else 0.5, ft.Colors.SURFACE),
+        border_color=ft.Colors.with_opacity(0.2, ft.Colors.WHITE if is_dark else ft.Colors.BLACK),
+        focused_border_color=ft.Colors.with_opacity(0.5, ft.Colors.INDIGO),
+        border_radius=12,
+        content_padding=12,
     )
     
     out_required_qty = ft.Text(value="-")
@@ -166,18 +212,25 @@ def create_calculator_view(settings, on_add_to_history, t):
     tf_target_amount.on_change = calc_target_qty
 
     reverse_box = ft.Container(
-        padding=12,
-        border_radius=12,
-        bgcolor=ft.Colors.SURFACE_CONTAINER,
+        padding=16,
+        border_radius=14,
+        bgcolor=ft.Colors.with_opacity(0.25 if is_dark else 0.45, ft.Colors.SURFACE_CONTAINER),
+        border=ft.BorderSide(1, ft.Colors.with_opacity(0.2, ft.Colors.WHITE if is_dark else ft.Colors.BLACK)),
+        shadow=ft.BoxShadow(
+            blur_radius=20,
+            spread_radius=0,
+            color=ft.Colors.with_opacity(0.2 if is_dark else 0.1, ft.Colors.BLACK),
+            offset=ft.Offset(0, 5),
+        ),
         content=ft.Column(
-            spacing=8,
+            spacing=10,
             controls=[
-                ft.Text(t("reverse_title"), size=14, weight=ft.FontWeight.W_600),
-                ft.Text(t("steam_fee", fee=settings["steam_fee_rate"] * 100), size=12),
+                ft.Text(t("reverse_title"), size=15, weight=ft.FontWeight.W_600),
+                ft.Text(t("steam_fee", fee=settings["steam_fee_rate"] * 100), size=13),
                 ft.Row(
                     spacing=12,
                     controls=[
-                        ft.Text(t("break_even_price"), size=12),
+                        ft.Text(t("break_even_price"), size=13),
                         out_need_sell,
                     ],
                 ),
@@ -186,102 +239,119 @@ def create_calculator_view(settings, on_add_to_history, t):
     )
 
     calc_card = ft.Container(
-        padding=16,
-        border_radius=16,
-        bgcolor=ft.Colors.SURFACE,
+        padding=20,
+        border_radius=18,
+        bgcolor=ft.Colors.with_opacity(0.2 if is_dark else 0.4, ft.Colors.SURFACE),
+        border=ft.BorderSide(1, ft.Colors.with_opacity(0.2, ft.Colors.WHITE if is_dark else ft.Colors.BLACK)),
+        shadow=ft.BoxShadow(
+            blur_radius=30,
+            spread_radius=0,
+            color=ft.Colors.with_opacity(0.3 if is_dark else 0.15, ft.Colors.BLACK),
+            offset=ft.Offset(0, 10),
+        ),
         content=ft.Column(
-            spacing=12,
+            spacing=14,
             controls=[
                 ft.Row(
-                    spacing=12,
+                    spacing=14,
                     controls=[
                         tf_item,
                         tf_note,
                     ],
                 ),
                 ft.Row(
-                    spacing=12,
+                    spacing=14,
                     controls=[
                         tf_cost,
                         tf_steam_sell,
                         tf_qty,
                     ],
                 ),
-                ft.Divider(),
-                ft.Text(t("result_title"), size=14, weight=ft.FontWeight.W_600),
+                ft.Container(height=1, bgcolor=ft.Colors.with_opacity(0.3, ft.Colors.SURFACE)),
+                ft.Text(t("result_title"), size=16, weight=ft.FontWeight.W_600),
                 ft.Column(
-                    spacing=6,
+                    spacing=8,
                     controls=[
                         ft.Row(
-                            spacing=12,
+                            spacing=14,
                             controls=[
-                                ft.Text(t("unit_net"), size=12, width=200),
+                                ft.Text(t("unit_net"), size=13, width=220),
                                 out_unit_net,
                             ],
                         ),
                         ft.Row(
-                            spacing=12,
+                            spacing=14,
                             controls=[
-                                ft.Text(t("total_cost"), size=12, width=200),
+                                ft.Text(t("total_cost"), size=13, width=220),
                                 out_total_cost,
                             ],
                         ),
                         ft.Row(
-                            spacing=12,
+                            spacing=14,
                             controls=[
-                                ft.Text(t("total_net"), size=12, width=200),
+                                ft.Text(t("total_net"), size=13, width=220),
                                 out_total_net,
                             ],
                         ),
                         ft.Row(
-                            spacing=12,
+                            spacing=14,
                             controls=[
-                                ft.Text(t("flip_ratio"), size=12, width=200),
+                                ft.Text(t("flip_ratio"), size=13, width=220),
                                 out_ratio,
                             ],
                         ),
                         ft.Row(
-                            spacing=12,
+                            spacing=14,
                             controls=[
-                                ft.Text(t("discount"), size=12, width=200),
+                                ft.Text(t("discount"), size=13, width=220),
                                 out_discount,
                             ],
                         ),
                     ],
                 ),
-                ft.Divider(),
-                ft.Text(t("target_amount"), size=14, weight=ft.FontWeight.W_600),
+                ft.Container(height=1, bgcolor=ft.Colors.with_opacity(0.3, ft.Colors.SURFACE)),
+                ft.Text(t("target_amount"), size=16, weight=ft.FontWeight.W_600),
                 ft.Row(
-                    spacing=12,
+                    spacing=14,
                     controls=[
                         tf_target_amount,
                     ],
                 ),
                 ft.Column(
-                    spacing=6,
+                    spacing=8,
                     controls=[
                         ft.Row(
-                            spacing=12,
+                            spacing=14,
                             controls=[
-                                ft.Text(t("required_qty"), size=12, width=200),
+                                ft.Text(t("required_qty"), size=13, width=220),
                                 out_required_qty,
                             ],
                         ),
                         ft.Row(
-                            spacing=12,
+                            spacing=14,
                             controls=[
-                                ft.Text(t("required_cost"), size=12, width=200),
+                                ft.Text(t("required_cost"), size=13, width=220),
                                 out_required_cost,
                             ],
                         ),
                     ],
                 ),
-                ft.Divider(),
+                ft.Container(height=1, bgcolor=ft.Colors.with_opacity(0.3, ft.Colors.SURFACE)),
                 reverse_box,
                 ft.Row(
                     alignment=ft.MainAxisAlignment.END,
                     controls=[
-                        ft.FilledButton(t("add_to_history"), icon=ft.Icons.ADD_OUTLINED, on_click=on_add),
+                        ft.FilledButton(
+                            t("add_to_history"), 
+                            icon=ft.Icons.ADD_OUTLINED, 
+                            on_click=on_add,
+                            style=ft.ButtonStyle(
+                                bgcolor=ft.Colors.with_opacity(0.8, ft.Colors.INDIGO),
+                                color=ft.Colors.WHITE,
+                                padding=14,
+                                shape=ft.RoundedRectangleBorder(radius=12),
+                            ),
+                        ),
                     ],
                 ),
             ],

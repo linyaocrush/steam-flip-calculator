@@ -4,14 +4,23 @@ from config import CURRENCY_CODES, CURRENCY_SYMBOLS
 from exchange_rate import fetch_exchange_rate
 from database import save_settings
 from i18n import LANGUAGE_CODES, LANGUAGE_LABELS
+from glassmorphism import get_glassmorphism_style
 
 
 def create_settings_view(settings, snack, t, page):
+    is_dark = settings.get("theme_mode") == "DARK"
+    
     tf_buy_currency = ft.Dropdown(
         label=t("buy_currency"),
         options=[ft.dropdown.Option(code, f"{code} - {CURRENCY_SYMBOLS[code]}") for code in CURRENCY_CODES],
         value=settings["buy_currency"],
         expand=True,
+        filled=True,
+        bgcolor=ft.Colors.with_opacity(0.3 if is_dark else 0.5, ft.Colors.SURFACE),
+        border_color=ft.Colors.with_opacity(0.2, ft.Colors.WHITE if is_dark else ft.Colors.BLACK),
+        focused_border_color=ft.Colors.with_opacity(0.5, ft.Colors.INDIGO),
+        border_radius=12,
+        content_padding=12,
     )
     
     tf_sell_currency = ft.Dropdown(
@@ -19,6 +28,12 @@ def create_settings_view(settings, snack, t, page):
         options=[ft.dropdown.Option(code, f"{code} - {CURRENCY_SYMBOLS[code]}") for code in CURRENCY_CODES],
         value=settings["sell_currency"],
         expand=True,
+        filled=True,
+        bgcolor=ft.Colors.with_opacity(0.3 if is_dark else 0.5, ft.Colors.SURFACE),
+        border_color=ft.Colors.with_opacity(0.2, ft.Colors.WHITE if is_dark else ft.Colors.BLACK),
+        focused_border_color=ft.Colors.with_opacity(0.5, ft.Colors.INDIGO),
+        border_radius=12,
+        content_padding=12,
     )
     
     tf_exchange_rate = ft.TextField(
@@ -26,6 +41,12 @@ def create_settings_view(settings, snack, t, page):
         value=str(settings["exchange_rate"]),
         keyboard_type=ft.KeyboardType.NUMBER,
         expand=True,
+        filled=True,
+        bgcolor=ft.Colors.with_opacity(0.3 if is_dark else 0.5, ft.Colors.SURFACE),
+        border_color=ft.Colors.with_opacity(0.2, ft.Colors.WHITE if is_dark else ft.Colors.BLACK),
+        focused_border_color=ft.Colors.with_opacity(0.5, ft.Colors.INDIGO),
+        border_radius=12,
+        content_padding=12,
     )
     
     tf_fee_rate = ft.TextField(
@@ -33,6 +54,12 @@ def create_settings_view(settings, snack, t, page):
         value=str(settings["steam_fee_rate"] * 100),
         keyboard_type=ft.KeyboardType.NUMBER,
         width=150,
+        filled=True,
+        bgcolor=ft.Colors.with_opacity(0.3 if is_dark else 0.5, ft.Colors.SURFACE),
+        border_color=ft.Colors.with_opacity(0.2, ft.Colors.WHITE if is_dark else ft.Colors.BLACK),
+        focused_border_color=ft.Colors.with_opacity(0.5, ft.Colors.INDIGO),
+        border_radius=12,
+        content_padding=12,
     )
     
     dd_theme_mode = ft.Dropdown(
@@ -43,6 +70,12 @@ def create_settings_view(settings, snack, t, page):
         ],
         value=settings["theme_mode"],
         width=150,
+        filled=True,
+        bgcolor=ft.Colors.with_opacity(0.3 if is_dark else 0.5, ft.Colors.SURFACE),
+        border_color=ft.Colors.with_opacity(0.2, ft.Colors.WHITE if is_dark else ft.Colors.BLACK),
+        focused_border_color=ft.Colors.with_opacity(0.5, ft.Colors.INDIGO),
+        border_radius=12,
+        content_padding=12,
     )
     
     dd_my_currency = ft.Dropdown(
@@ -50,6 +83,12 @@ def create_settings_view(settings, snack, t, page):
         options=[ft.dropdown.Option(code, f"{code} - {CURRENCY_SYMBOLS[code]}") for code in CURRENCY_CODES],
         value=settings["my_currency"],
         expand=True,
+        filled=True,
+        bgcolor=ft.Colors.with_opacity(0.3 if is_dark else 0.5, ft.Colors.SURFACE),
+        border_color=ft.Colors.with_opacity(0.2, ft.Colors.WHITE if is_dark else ft.Colors.BLACK),
+        focused_border_color=ft.Colors.with_opacity(0.5, ft.Colors.INDIGO),
+        border_radius=12,
+        content_padding=12,
     )
     
     dd_language = ft.Dropdown(
@@ -57,12 +96,22 @@ def create_settings_view(settings, snack, t, page):
         options=[ft.dropdown.Option(code, LANGUAGE_LABELS[code]) for code in LANGUAGE_CODES],
         value=settings.get("language", "zh"),
         expand=True,
+        filled=True,
+        bgcolor=ft.Colors.with_opacity(0.3 if is_dark else 0.5, ft.Colors.SURFACE),
+        border_color=ft.Colors.with_opacity(0.2, ft.Colors.WHITE if is_dark else ft.Colors.BLACK),
+        focused_border_color=ft.Colors.with_opacity(0.5, ft.Colors.INDIGO),
+        border_radius=12,
+        content_padding=12,
     )
     
     btn_fetch_rate = ft.ElevatedButton(
         t("fetch_rate"),
         icon=ft.Icons.DOWNLOAD_OUTLINED,
         width=120,
+        style=ft.ButtonStyle(
+            padding=12,
+            shape=ft.RoundedRectangleBorder(radius=10),
+        ),
     )
     
     save_status_text = ft.Text(t("unsaved"), color=ft.Colors.RED, size=12)
@@ -122,57 +171,87 @@ def create_settings_view(settings, snack, t, page):
         page.update()
         return True
 
-    settings_view = ft.Card(
-        elevation=1,
-        content=ft.Container(
-            padding=18,
-            content=ft.Column(
-                spacing=14,
-                controls=[
-                    ft.Row(
-                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+    settings_view = ft.Container(
+        padding=20,
+        border_radius=18,
+        bgcolor=ft.Colors.with_opacity(0.2 if is_dark else 0.4, ft.Colors.SURFACE),
+        border=ft.BorderSide(1, ft.Colors.with_opacity(0.2, ft.Colors.WHITE if is_dark else ft.Colors.BLACK)),
+        shadow=ft.BoxShadow(
+            blur_radius=30,
+            spread_radius=0,
+            color=ft.Colors.with_opacity(0.3 if is_dark else 0.15, ft.Colors.BLACK),
+            offset=ft.Offset(0, 10),
+        ),
+        content=ft.Column(
+            spacing=16,
+            controls=[
+                ft.Row(
+                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                    controls=[
+                        ft.Text(t("settings_title"), size=20, weight=ft.FontWeight.W_700),
+                        save_status_text,
+                    ],
+                ),
+                ft.Container(
+                    padding=18,
+                    border_radius=16,
+                    bgcolor=ft.Colors.with_opacity(0.25 if is_dark else 0.45, ft.Colors.SURFACE_CONTAINER),
+                    border=ft.BorderSide(1, ft.Colors.with_opacity(0.2, ft.Colors.WHITE if is_dark else ft.Colors.BLACK)),
+                    shadow=ft.BoxShadow(
+                        blur_radius=20,
+                        spread_radius=0,
+                        color=ft.Colors.with_opacity(0.2 if is_dark else 0.1, ft.Colors.BLACK),
+                        offset=ft.Offset(0, 5),
+                    ),
+                    content=ft.Column(
+                        spacing=16,
                         controls=[
-                            ft.Text(t("settings_title"), size=18, weight=ft.FontWeight.W_700),
-                            save_status_text,
+                            ft.Row([tf_buy_currency, tf_sell_currency], spacing=14),
+                            ft.Row([tf_exchange_rate, btn_fetch_rate, tf_fee_rate], spacing=14),
+                            ft.Row([dd_theme_mode, dd_language], spacing=14),
+                            ft.Row([dd_my_currency], spacing=14),
                         ],
                     ),
-                    ft.Container(
-                        padding=16,
-                        border_radius=14,
-                        bgcolor=ft.Colors.SURFACE_CONTAINER,
-                        content=ft.Column(
-                            spacing=14,
-                            controls=[
-                                ft.Row([tf_buy_currency, tf_sell_currency], spacing=12),
-                                ft.Row([tf_exchange_rate, btn_fetch_rate, tf_fee_rate], spacing=12),
-                                ft.Row([dd_theme_mode, dd_language], spacing=12),
-                                ft.Row([dd_my_currency], spacing=12),
-                            ],
-                        ),
-                    ),
-                    ft.Text(t("settings_desc"), size=14, weight=ft.FontWeight.W_600),
-                    ft.Column(
-                        spacing=4,
-                        controls=[
-                            ft.Text(t("buy_currency_desc"), size=12, opacity=0.8),
-                            ft.Text(t("sell_currency_desc"), size=12, opacity=0.8),
-                            ft.Text(t("exchange_rate_desc"), size=12, opacity=0.8),
-                            ft.Text(t("fee_rate_desc"), size=12, opacity=0.8),
-                            ft.Text(t("theme_mode_desc"), size=12, opacity=0.8),
-                            ft.Text(t("my_currency_desc"), size=12, opacity=0.8),
-                            ft.Text(t("language_desc"), size=12, opacity=0.8),
-                        ],
-                    ),
-                    ft.Row(
-                        spacing=10,
+                ),
+                ft.Text(t("settings_desc"), size=15, weight=ft.FontWeight.W_600),
+                ft.Column(
+                    spacing=6,
+                    controls=[
+                        ft.Text(t("buy_currency_desc"), size=13, opacity=0.8),
+                        ft.Text(t("sell_currency_desc"), size=13, opacity=0.8),
+                        ft.Text(t("exchange_rate_desc"), size=13, opacity=0.8),
+                        ft.Text(t("fee_rate_desc"), size=13, opacity=0.8),
+                        ft.Text(t("theme_mode_desc"), size=13, opacity=0.8),
+                        ft.Text(t("my_currency_desc"), size=13, opacity=0.8),
+                        ft.Text(t("language_desc"), size=13, opacity=0.8),
+                    ],
+                ),
+                ft.Row(
+                        spacing=12,
                         alignment=ft.MainAxisAlignment.END,
                         controls=[
-                            ft.OutlinedButton(t("reset"), icon=ft.Icons.UNDO, on_click=reset_settings),
-                            ft.FilledButton(t("save_settings"), icon=ft.Icons.SAVE),
+                            ft.OutlinedButton(
+                                t("reset"), 
+                                icon=ft.Icons.UNDO, 
+                                on_click=reset_settings,
+                                style=ft.ButtonStyle(
+                                    padding=12,
+                                    shape=ft.RoundedRectangleBorder(radius=10),
+                                ),
+                            ),
+                            ft.FilledButton(
+                                t("save_settings"), 
+                                icon=ft.Icons.SAVE,
+                                style=ft.ButtonStyle(
+                                    bgcolor=ft.Colors.with_opacity(0.8, ft.Colors.INDIGO),
+                                    color=ft.Colors.WHITE,
+                                    padding=14,
+                                    shape=ft.RoundedRectangleBorder(radius=12),
+                                ),
+                            ),
                         ],
                     ),
-                ],
-            ),
+            ],
         ),
     )
 
@@ -190,5 +269,5 @@ def create_settings_view(settings, snack, t, page):
         "update_exchange_label": update_exchange_label,
         "mark_unsaved": mark_unsaved,
         "check_unsaved": check_unsaved,
-        "save_button": settings_view.content.content.controls[4].controls[1],
+        "save_button": settings_view.content.controls[4].controls[1],
     }

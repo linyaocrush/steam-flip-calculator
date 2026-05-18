@@ -10,6 +10,13 @@ from views import (
     create_stats_view,
     create_settings_view,
 )
+from glassmorphism import (
+    create_gradient_background,
+    create_floating_orbs,
+    create_glass_card,
+    create_glass_button,
+    get_glassmorphism_style,
+)
 
 
 def main(page: ft.Page):
@@ -29,6 +36,8 @@ def main(page: ft.Page):
     settings = get_settings()
     page.theme_mode = ft.ThemeMode.DARK if settings.get("theme_mode") == "DARK" else ft.ThemeMode.LIGHT
     page.title = get_text("app_title", settings.get("language", "zh"))
+
+    page.bgcolor = ft.Colors.TRANSPARENT
 
     def get_t():
         lang = settings.get("language", "zh")
@@ -152,24 +161,55 @@ def main(page: ft.Page):
         page.dialog.open = True
         page.update()
 
+    is_dark = page.theme_mode == ft.ThemeMode.DARK
+    
     history_view = ft.Column(
         expand=True,
-        spacing=12,
+        spacing=14,
         controls=[
             ft.Row(
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                 controls=[
-                    ft.Text(t("history_title"), size=18, weight=ft.FontWeight.W_700),
+                    ft.Text(t("history_title"), size=20, weight=ft.FontWeight.W_700),
                     ft.Row(
-                        spacing=8,
+                        spacing=10,
                         controls=[
-                            ft.OutlinedButton(t("refresh"), icon=ft.Icons.REFRESH, on_click=lambda _: refresh_history_and_stats()),
-                            ft.OutlinedButton(t("clear_all"), icon=ft.Icons.DELETE_SWEEP_OUTLINED, on_click=clear_all),
+                            ft.OutlinedButton(
+                                t("refresh"), 
+                                icon=ft.Icons.REFRESH, 
+                                on_click=lambda _: refresh_history_and_stats(),
+                                style=ft.ButtonStyle(
+                                    padding=10,
+                                    shape=ft.RoundedRectangleBorder(radius=10),
+                                ),
+                            ),
+                            ft.OutlinedButton(
+                                t("clear_all"), 
+                                icon=ft.Icons.DELETE_SWEEP_OUTLINED, 
+                                on_click=clear_all,
+                                style=ft.ButtonStyle(
+                                    padding=10,
+                                    shape=ft.RoundedRectangleBorder(radius=10),
+                                ),
+                            ),
                         ],
                     ),
                 ],
             ),
-            ft.Container(expand=True, border_radius=14, padding=10, bgcolor=ft.Colors.SURFACE, content=ft.Column([dt], expand=True)),
+            ft.Container(
+                expand=True, 
+                border_radius=16, 
+                padding=14, 
+                bgcolor=ft.Colors.with_opacity(0.2 if is_dark else 0.4, ft.Colors.SURFACE),
+                border=ft.BorderSide(1, ft.Colors.with_opacity(0.2, ft.Colors.WHITE if is_dark else ft.Colors.BLACK)),
+                shadow=ft.BoxShadow(
+                    blur_radius=25,
+                    spread_radius=0,
+                    color=ft.Colors.with_opacity(0.25 if is_dark else 0.12, ft.Colors.BLACK),
+                    offset=ft.Offset(0, 8),
+                ),
+                content=ft.Column([dt], expand=True),
+            ),
         ],
     )
 
@@ -277,47 +317,83 @@ def main(page: ft.Page):
         stats_view.visible = (view_name == "stats")
         settings_view.visible = (view_name == "settings")
         page.update()
-
+    
     tab_buttons = ft.Row([
         ft.Button(
             t("calculator"),
             icon=ft.Icons.CALCULATE_OUTLINED,
             on_click=lambda _: switch_view("calculator"),
+            style=ft.ButtonStyle(
+                bgcolor=ft.Colors.with_opacity(0.3, ft.Colors.INDIGO) if not is_dark else ft.Colors.with_opacity(0.4, ft.Colors.INDIGO),
+                color=ft.Colors.WHITE,
+                padding=10,
+                shape=ft.RoundedRectangleBorder(radius=10),
+            ),
         ),
         ft.Button(
             t("history"),
             icon=ft.Icons.HISTORY,
             on_click=lambda _: switch_view("history"),
+            style=ft.ButtonStyle(
+                bgcolor=ft.Colors.with_opacity(0.2, ft.Colors.SURFACE) if not is_dark else ft.Colors.with_opacity(0.3, ft.Colors.SURFACE),
+                color=ft.Colors.WHITE if is_dark else ft.Colors.BLACK,
+                padding=10,
+                shape=ft.RoundedRectangleBorder(radius=10),
+            ),
         ),
         ft.Button(
             t("stats"),
             icon=ft.Icons.INSIGHTS_OUTLINED,
             on_click=lambda _: switch_view("stats"),
+            style=ft.ButtonStyle(
+                bgcolor=ft.Colors.with_opacity(0.2, ft.Colors.SURFACE) if not is_dark else ft.Colors.with_opacity(0.3, ft.Colors.SURFACE),
+                color=ft.Colors.WHITE if is_dark else ft.Colors.BLACK,
+                padding=10,
+                shape=ft.RoundedRectangleBorder(radius=10),
+            ),
         ),
         ft.Button(
             t("settings"),
             icon=ft.Icons.SETTINGS_OUTLINED,
             on_click=lambda _: switch_view("settings"),
+            style=ft.ButtonStyle(
+                bgcolor=ft.Colors.with_opacity(0.2, ft.Colors.SURFACE) if not is_dark else ft.Colors.with_opacity(0.3, ft.Colors.SURFACE),
+                color=ft.Colors.WHITE if is_dark else ft.Colors.BLACK,
+                padding=10,
+                shape=ft.RoundedRectangleBorder(radius=10),
+            ),
         ),
-    ])
+    ], spacing=8)
 
     main_content = ft.Container(
-        padding=12,
+        padding=16,
         content=ft.Column(
-            spacing=10,
+            spacing=12,
             controls=[
                 ft.Row(
                     alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                     controls=[
                         ft.Row(
-                            spacing=10,
-                            controls=[ft.Icon(ft.Icons.ACCOUNT_BALANCE_WALLET_OUTLINED),
-                                      ft.Text(t("app_title"), size=20, weight=ft.FontWeight.W_700)],
+                            spacing=12,
+                            controls=[
+                                ft.Container(
+                                    content=ft.Icon(ft.Icons.ACCOUNT_BALANCE_WALLET_OUTLINED, size=28, color=ft.Colors.WHITE),
+                                    padding=8,
+                                    border_radius=12,
+                                    bgcolor=ft.Colors.with_opacity(0.3, ft.Colors.INDIGO),
+                                ),
+                                ft.Text(t("app_title"), size=22, weight=ft.FontWeight.W_700, color=ft.Colors.WHITE if is_dark else ft.Colors.BLACK),
+                            ],
                         ),
-                        ft.OutlinedButton(t("toggle_theme"), icon=ft.Icons.DARK_MODE_OUTLINED, on_click=toggle_theme),
+                        create_glass_button(t("toggle_theme"), ft.Icons.DARK_MODE_OUTLINED, toggle_theme, is_dark, False),
                     ],
                 ),
-                tab_buttons,
+                ft.Container(
+                    padding=12,
+                    border_radius=14,
+                    bgcolor=ft.Colors.with_opacity(0.2 if is_dark else 0.4, ft.Colors.SURFACE),
+                    content=tab_buttons,
+                ),
                 calc_card,
                 history_view,
                 stats_view,
@@ -326,7 +402,22 @@ def main(page: ft.Page):
         ),
     )
 
-    page.add(main_content)
+    background_stack = ft.Stack(
+        [
+            create_gradient_background(is_dark),
+            create_floating_orbs(is_dark),
+            ft.Container(
+                content=main_content,
+                padding=20,
+                expand=True,
+            ),
+        ],
+        expand=True,
+        width=float("inf"),
+        height=float("inf"),
+    )
+
+    page.add(background_stack)
 
     history_view.visible = False
     stats_view.visible = False
