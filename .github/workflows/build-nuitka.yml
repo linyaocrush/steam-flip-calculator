@@ -68,48 +68,48 @@ jobs:
             echo "${{ github.event.inputs.release_notes }}" > release/使用说明.txt
           else
             cat > release/使用说明.txt << 'EOF'
-            # Steam 倒余额工具箱
-            
-            版本: ${{ github.event.inputs.version }}
-            
-            ## 下载说明
-            
-            本版本提供三种下载方式，请根据需求选择：
-            
-            ### 1. 单文件版 (SteamFlipCalculator-OneFile.exe)
-            - **特点**：所有功能打包在一个 exe 文件中
-            - **优点**：下载方便，双击即运行，无需解压
-            - **适用场景**：快速使用，不想解压文件
-            - **文件大小**：较大（包含所有依赖）
-            
-            ### 2. 绿色版 (SteamFlipCalculator-*-standalone-windows.zip)
-            - **特点**：解压后直接运行，无需安装
-            - **优点**：不写入注册表，可随时删除，便携性好
-            - **适用场景**：U盘携带、临时使用、不想安装软件
-            - **文件大小**：中等
-            
-            ### 3. 安装版 (SteamFlipCalculator-*-setup.exe)
-            - **特点**：带安装向导，支持桌面快捷方式
-            - **优点**：正式安装，支持卸载，适合长期使用
-            - **适用场景**：长期使用，需要快捷方式
-            - **文件大小**：中等
-            
-            ## 快速开始
-            
-            下载对应版本后：
-            - 单文件版：双击 SteamFlipCalculator-OneFile.exe
-            - 绿色版：解压后双击 SteamFlipCalculator.exe
-            - 安装版：运行安装程序，按提示完成安装
-            
-            ## 系统要求
-            
-            - Windows 10 或更高版本
-            - 64位操作系统
-            
-            ## 问题反馈
-            
-            如遇问题，请访问 GitHub 提交 Issue
-            EOF
+# Steam 倒余额工具箱
+
+版本: ${{ github.event.inputs.version }}
+
+## 下载说明
+
+本版本提供三种下载方式，请根据需求选择：
+
+### 1. 单文件版 (SteamFlipCalculator-OneFile.exe)
+- **特点**：所有功能打包在一个 exe 文件中
+- **优点**：下载方便，双击即运行，无需解压
+- **适用场景**：快速使用，不想解压文件
+- **文件大小**：较大（包含所有依赖）
+
+### 2. 绿色版 (SteamFlipCalculator-*-standalone-windows.zip)
+- **特点**：解压后直接运行，无需安装
+- **优点**：不写入注册表，可随时删除，便携性好
+- **适用场景**：U盘携带、临时使用、不想安装软件
+- **文件大小**：中等
+
+### 3. 安装版 (SteamFlipCalculator-*-setup.exe)
+- **特点**：带安装向导，支持桌面快捷方式
+- **优点**：正式安装，支持卸载，适合长期使用
+- **适用场景**：长期使用，需要快捷方式
+- **文件大小**：中等
+
+## 快速开始
+
+下载对应版本后：
+- 单文件版：双击 SteamFlipCalculator-OneFile.exe
+- 绿色版：解压后双击 SteamFlipCalculator.exe
+- 安装版：运行安装程序，按提示完成安装
+
+## 系统要求
+
+- Windows 10 或更高版本
+- 64位操作系统
+
+## 问题反馈
+
+如遇问题，请访问 GitHub 提交 Issue
+EOF
           fi
           
           cp release/使用说明.txt release/onefile/
