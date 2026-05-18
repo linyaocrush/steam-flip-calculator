@@ -182,3 +182,4 @@ cython_debug/
 CLAUDE.md
 steam_flip.db
 /.claude
+run.bat
