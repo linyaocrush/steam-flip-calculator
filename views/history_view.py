@@ -12,12 +12,15 @@ def create_history_view(settings, snack, t):
             ft.DataColumn(ft.Text(t("net_unit"), size=12)),
             ft.DataColumn(ft.Text(t("cost_total"), size=12)),
             ft.DataColumn(ft.Text(t("net_total"), size=12)),
+            ft.DataColumn(ft.Text(t("flip_ratio"), size=12)),
             ft.DataColumn(ft.Text(t("discount_pct"), size=12)),
             ft.DataColumn(ft.Text(t("action"), size=12)),
         ],
         rows=[],
         border_radius=8,
         show_checkbox_column=False,
+        expand=True,
+        width=float("inf"),
     )
 
     def row_for_record(record, refresh_callback):
@@ -39,6 +42,7 @@ def create_history_view(settings, snack, t):
                 ft.DataCell(ft.Text(f"{record.sell_currency_symbol} {money(record.unit_net)}", size=11)),
                 ft.DataCell(ft.Text(f"{record.buy_currency_symbol} {money(record.total_cost)}", size=11)),
                 ft.DataCell(ft.Text(f"{record.sell_currency_symbol} {money(record.total_net)}", size=11)),
+                ft.DataCell(ft.Text(pct(record.ratio), size=11)),
                 ft.DataCell(ft.Text(pct(record.discount), size=11)),
                 ft.DataCell(
                     ft.IconButton(

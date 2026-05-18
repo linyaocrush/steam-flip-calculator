@@ -32,8 +32,9 @@ class HistoryRecord(BaseModel):
     total_net_in_my_currency: float = 0.0
     total_steam_sell_in_my_currency: float = 0.0
     discount: float = 0.0
+    ratio: float = 0.0
 
-    @field_validator('unit_cost', 'unit_steam_sell', 'unit_net', 'total_cost', 'total_steam_sell', 'total_net', 'exchange_rate', 'discount')
+    @field_validator('unit_cost', 'unit_steam_sell', 'unit_net', 'total_cost', 'total_steam_sell', 'total_net', 'exchange_rate', 'discount', 'ratio')
     @classmethod
     def validate_positive_numbers(cls, v):
         if v < 0:

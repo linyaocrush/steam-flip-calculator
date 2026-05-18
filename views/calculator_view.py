@@ -202,6 +202,7 @@ def create_calculator_view(settings, on_add_to_history, t):
             "total_cost_in_my_currency": data.total_cost,
             "total_net_in_my_currency": data.total_net,
             "total_steam_sell_in_my_currency": data.total_cost + data.total_net,
+            "ratio": data.ratio,
         }
 
         on_add_to_history(tf_item, tf_note, tf_cost, tf_steam_sell, tf_qty, record_data)

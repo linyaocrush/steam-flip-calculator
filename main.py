@@ -305,59 +305,90 @@ def main(page: ft.Page):
 
     save_button.on_click = save_settings_click
 
+    current_view = "calculator"
+
     def switch_view(view_name):
+        nonlocal current_view
+        current_view = view_name
         calc_card.visible = (view_name == "calculator")
         history_view.visible = (view_name == "history")
         stats_view.visible = (view_name == "stats")
         settings_view.visible = (view_name == "settings")
+        update_button_styles()
         page.update()
     
-    tab_buttons = ft.Row([
-        ft.Button(
-            t("calculator"),
-            icon=ft.Icons.CALCULATE_OUTLINED,
-            on_click=lambda _: switch_view("calculator"),
-            style=ft.ButtonStyle(
-                bgcolor=ft.Colors.with_opacity(0.3, ft.Colors.INDIGO) if not is_dark else ft.Colors.with_opacity(0.4, ft.Colors.INDIGO),
-                color=ft.Colors.WHITE,
-                padding=10,
-                shape=ft.RoundedRectangleBorder(radius=10),
-            ),
+    def update_button_styles():
+        for btn, view_name in buttons:
+            if view_name == current_view:
+                btn.style.bgcolor = ft.Colors.with_opacity(0.8, ft.Colors.INDIGO)
+                btn.style.color = ft.Colors.WHITE
+                btn.style.overlay_color = ft.Colors.with_opacity(0.2, ft.Colors.WHITE)
+            else:
+                btn.style.bgcolor = ft.Colors.with_opacity(0.3, ft.Colors.SURFACE)
+                btn.style.color = ft.Colors.WHITE
+                btn.style.overlay_color = ft.Colors.with_opacity(0.1, ft.Colors.WHITE)
+        page.update()
+    
+    btn_calculator = ft.Button(
+        t("calculator"),
+        icon=ft.Icons.CALCULATE_OUTLINED,
+        on_click=lambda _: switch_view("calculator"),
+        style=ft.ButtonStyle(
+            bgcolor=ft.Colors.with_opacity(0.8, ft.Colors.INDIGO),
+            color=ft.Colors.WHITE,
+            padding=10,
+            shape=ft.RoundedRectangleBorder(radius=10),
+            overlay_color=ft.Colors.with_opacity(0.2, ft.Colors.WHITE),
         ),
-        ft.Button(
-            t("history"),
-            icon=ft.Icons.HISTORY,
-            on_click=lambda _: switch_view("history"),
-            style=ft.ButtonStyle(
-                bgcolor=ft.Colors.with_opacity(0.2, ft.Colors.SURFACE) if not is_dark else ft.Colors.with_opacity(0.3, ft.Colors.SURFACE),
-                color=ft.Colors.WHITE if is_dark else ft.Colors.BLACK,
-                padding=10,
-                shape=ft.RoundedRectangleBorder(radius=10),
-            ),
+    )
+    
+    btn_history = ft.Button(
+        t("history"),
+        icon=ft.Icons.HISTORY,
+        on_click=lambda _: switch_view("history"),
+        style=ft.ButtonStyle(
+            bgcolor=ft.Colors.with_opacity(0.3, ft.Colors.SURFACE),
+            color=ft.Colors.WHITE,
+            padding=10,
+            shape=ft.RoundedRectangleBorder(radius=10),
+            overlay_color=ft.Colors.with_opacity(0.1, ft.Colors.WHITE),
         ),
-        ft.Button(
-            t("stats"),
-            icon=ft.Icons.INSIGHTS_OUTLINED,
-            on_click=lambda _: switch_view("stats"),
-            style=ft.ButtonStyle(
-                bgcolor=ft.Colors.with_opacity(0.2, ft.Colors.SURFACE) if not is_dark else ft.Colors.with_opacity(0.3, ft.Colors.SURFACE),
-                color=ft.Colors.WHITE if is_dark else ft.Colors.BLACK,
-                padding=10,
-                shape=ft.RoundedRectangleBorder(radius=10),
-            ),
+    )
+    
+    btn_stats = ft.Button(
+        t("stats"),
+        icon=ft.Icons.INSIGHTS_OUTLINED,
+        on_click=lambda _: switch_view("stats"),
+        style=ft.ButtonStyle(
+            bgcolor=ft.Colors.with_opacity(0.3, ft.Colors.SURFACE),
+            color=ft.Colors.WHITE,
+            padding=10,
+            shape=ft.RoundedRectangleBorder(radius=10),
+            overlay_color=ft.Colors.with_opacity(0.1, ft.Colors.WHITE),
         ),
-        ft.Button(
-            t("settings"),
-            icon=ft.Icons.SETTINGS_OUTLINED,
-            on_click=lambda _: switch_view("settings"),
-            style=ft.ButtonStyle(
-                bgcolor=ft.Colors.with_opacity(0.2, ft.Colors.SURFACE) if not is_dark else ft.Colors.with_opacity(0.3, ft.Colors.SURFACE),
-                color=ft.Colors.WHITE if is_dark else ft.Colors.BLACK,
-                padding=10,
-                shape=ft.RoundedRectangleBorder(radius=10),
-            ),
+    )
+    
+    btn_settings = ft.Button(
+        t("settings"),
+        icon=ft.Icons.SETTINGS_OUTLINED,
+        on_click=lambda _: switch_view("settings"),
+        style=ft.ButtonStyle(
+            bgcolor=ft.Colors.with_opacity(0.3, ft.Colors.SURFACE),
+            color=ft.Colors.WHITE,
+            padding=10,
+            shape=ft.RoundedRectangleBorder(radius=10),
+            overlay_color=ft.Colors.with_opacity(0.1, ft.Colors.WHITE),
         ),
-    ], spacing=8)
+    )
+    
+    buttons = [
+        (btn_calculator, "calculator"),
+        (btn_history, "history"),
+        (btn_stats, "stats"),
+        (btn_settings, "settings"),
+    ]
+    
+    tab_buttons = ft.Row([btn for btn, _ in buttons], spacing=8)
 
     main_content = ft.Container(
         padding=16,

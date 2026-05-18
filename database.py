@@ -60,7 +60,8 @@ def init_db():
             total_cost_in_my_currency REAL NOT NULL DEFAULT 0,
             total_net_in_my_currency REAL NOT NULL DEFAULT 0,
             total_steam_sell_in_my_currency REAL NOT NULL DEFAULT 0,
-            discount REAL NOT NULL DEFAULT 0
+            discount REAL NOT NULL DEFAULT 0,
+            ratio REAL NOT NULL DEFAULT 0
         )
         """
     )
@@ -85,6 +86,11 @@ def init_db():
 
     cur.execute("CREATE INDEX IF NOT EXISTS idx_history_id_desc ON history(id DESC)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_history_ts_desc ON history(ts DESC)")
+    
+    cur.execute("PRAGMA table_info(history)")
+    columns = [column[1] for column in cur.fetchall()]
+    if 'ratio' not in columns:
+        cur.execute("ALTER TABLE history ADD COLUMN ratio REAL NOT NULL DEFAULT 0")
     
     cur.execute("SELECT COUNT(*) FROM settings")
     if cur.fetchone()[0] == 0:
@@ -229,7 +235,7 @@ def get_records(limit: int = 500) -> List[HistoryRecord]:
                    unit_cost, unit_steam_sell, qty, unit_net, total_cost, total_net,
                    sell_currency, sell_currency_symbol, buy_currency, buy_currency_symbol,
                    exchange_rate, my_currency, my_currency_symbol,
-                   total_cost_in_my_currency, total_net_in_my_currency, discount
+                   total_cost_in_my_currency, total_net_in_my_currency, discount, ratio
             FROM history
             ORDER BY id DESC
             LIMIT ?
@@ -262,7 +268,8 @@ def get_records(limit: int = 500) -> List[HistoryRecord]:
             "total_cost_in_my_currency": row["total_cost_in_my_currency"],
             "total_net_in_my_currency": row["total_net_in_my_currency"],
             "total_steam_sell_in_my_currency": row["total_cost_in_my_currency"] + row["total_net_in_my_currency"],
-            "discount": row["discount"]
+            "discount": row["discount"],
+            "ratio": row["ratio"] if "ratio" in row.keys() else 0.0
         }
         records.append(HistoryRecord(**record_data))
 
@@ -293,8 +300,8 @@ def add_record(record: HistoryRecord) -> bool:
                                 exchange_rate,
                                 my_currency, my_currency_symbol,
                                 total_cost_in_my_currency, total_net_in_my_currency,
-                                total_steam_sell_in_my_currency, discount)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                total_steam_sell_in_my_currency, discount, ratio)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (ts, record.item_name, record.note, record.unit_cost, record.unit_steam_sell, record.qty,
              record.unit_net, record.total_cost, record.total_steam_sell, record.total_net,
@@ -303,7 +310,7 @@ def add_record(record: HistoryRecord) -> bool:
              exchange_rate,
              my_currency, my_currency_symbol,
              record.total_cost_in_my_currency, record.total_net_in_my_currency,
-             record.total_steam_sell_in_my_currency, record.discount),
+             record.total_steam_sell_in_my_currency, record.discount, record.ratio),
         )
 
     invalidate_stats_cache()
