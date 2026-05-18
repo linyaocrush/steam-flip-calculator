@@ -2,6 +2,7 @@ import flet as ft
 from utils import money, pct, safe_float, safe_int
 from calculator import calculate_local
 from glassmorphism import create_glass_card, get_glassmorphism_style
+from database import get_settings
 
 
 def create_calculator_view(settings, on_add_to_history, t):
@@ -94,14 +95,15 @@ def create_calculator_view(settings, on_add_to_history, t):
     out_required_cost = ft.Text(value="-")
 
     def format_price(amount, currency_symbol, currency_code):
-        my_currency = settings.my_currency
-        my_symbol = settings.my_currency_symbol
+        current_settings = get_settings()
+        my_currency = current_settings.my_currency
+        my_symbol = current_settings.my_currency_symbol
         
         if currency_code == my_currency:
             return f"{currency_symbol} {money(amount)}"
         
-        exchange_rate = settings.exchange_rate
-        if settings.buy_currency == my_currency:
+        exchange_rate = current_settings.exchange_rate
+        if current_settings.buy_currency == my_currency:
             converted = amount / exchange_rate
         else:
             converted = amount * exchange_rate
@@ -114,49 +116,52 @@ def create_calculator_view(settings, on_add_to_history, t):
         - 若 buy_currency == my_currency：直接显示 my_currency（不再显示 sell_currency + 括号）
         - 否则：沿用原来的 format_price 逻辑（卖出币种为主，括号里我的币种）
         """
-        my_currency = settings.my_currency
-        my_symbol = settings.my_currency_symbol
+        current_settings = get_settings()
+        my_currency = current_settings.my_currency
+        my_symbol = current_settings.my_currency_symbol
 
-        if settings.buy_currency == my_currency:
-            if settings.buy_currency != settings.sell_currency:
-                exchange_rate = settings.exchange_rate
+        if current_settings.buy_currency == my_currency:
+            if current_settings.buy_currency != current_settings.sell_currency:
+                exchange_rate = current_settings.exchange_rate
                 amount_in_my = amount_in_sell_currency / exchange_rate
             else:
                 amount_in_my = amount_in_sell_currency
-            return f"{my_symbol} {money(amount_in_my)}"
+            return f"{current_settings.buy_currency_symbol} {money(amount_in_my)}"
 
-        return format_price(amount_in_sell_currency, settings.sell_currency_symbol, settings.sell_currency)
+        return format_price(amount_in_sell_currency, current_settings.buy_currency_symbol, current_settings.buy_currency)
 
     def recalc(_=None):
+        current_settings = get_settings()
         unit_cost = safe_float(tf_cost.value)
         unit_sell = safe_float(tf_steam_sell.value)
         qty = safe_int(tf_qty.value)
 
-        use_exchange = settings.buy_currency != settings.sell_currency
+        use_exchange = current_settings.buy_currency != current_settings.sell_currency
 
         data = calculate_local(
             unit_cost,
             unit_sell,
             qty,
             use_exchange,
-            settings.exchange_rate,
-            settings.steam_fee_rate,
-            settings.buy_currency,
-            settings.sell_currency,
-            settings.my_currency,
+            current_settings.exchange_rate,
+            current_settings.steam_fee_rate,
+            current_settings.buy_currency,
+            current_settings.sell_currency,
+            current_settings.my_currency,
         )
 
-        out_unit_net.value = format_price(data.unit_net, settings.sell_currency_symbol, settings.sell_currency)
+        out_unit_net.value = format_price(data.unit_net, current_settings.sell_currency_symbol, current_settings.sell_currency)
         out_total_cost.value = format_cost(data.total_cost)
-        out_total_net.value = format_price(data.total_net, settings.sell_currency_symbol, settings.sell_currency)
+        out_total_net.value = format_price(data.total_net, current_settings.sell_currency_symbol, current_settings.sell_currency)
         out_ratio.value = f"{pct(data.ratio)} ({t('ratio_desc')})"
-        out_discount.value = f"{pct(data.discount)}"
-        out_need_sell.value = f"{format_price(data.need_sell, settings.sell_currency_symbol, settings.sell_currency)} ({t('unit')})"
+        out_discount.value = f"{data.discount:,.2f}%"
+        out_need_sell.value = f"{format_price(data.need_sell, current_settings.sell_currency_symbol, current_settings.sell_currency)} ({t('unit')})"
         
         calc_target_qty()
         return True
 
     def calc_target_qty(_=None):
+        current_settings = get_settings()
         target_amount = safe_float(tf_target_amount.value)
         unit_cost = safe_float(tf_cost.value)
         unit_sell = safe_float(tf_steam_sell.value)
@@ -166,14 +171,14 @@ def create_calculator_view(settings, on_add_to_history, t):
             out_required_cost.value = "-"
             return
         
-        net_rate = 1.0 - settings.steam_fee_rate
+        net_rate = 1.0 - current_settings.steam_fee_rate
         unit_net = unit_sell * net_rate
         required_qty = int((target_amount / unit_net) + 0.999)
         required_cost = unit_cost * required_qty
         
-        use_exchange = settings.buy_currency != settings.sell_currency
+        use_exchange = current_settings.buy_currency != current_settings.sell_currency
         if use_exchange:
-            required_cost_display = required_cost * settings.exchange_rate
+            required_cost_display = required_cost * current_settings.exchange_rate
         else:
             required_cost_display = required_cost
         
