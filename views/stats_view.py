@@ -4,7 +4,7 @@ from glassmorphism import get_glassmorphism_style
 
 
 def create_stats_view(settings, t):
-    is_dark = settings.get("theme_mode") == "DARK"
+    is_dark = True
     
     st_total_cost = ft.Text("-")
     st_total_net = ft.Text("-")
@@ -19,12 +19,12 @@ def create_stats_view(settings, t):
     stats_view = ft.Container(
         padding=20,
         border_radius=18,
-        bgcolor=ft.Colors.with_opacity(0.2 if is_dark else 0.4, ft.Colors.SURFACE),
-        border=ft.BorderSide(1, ft.Colors.with_opacity(0.2, ft.Colors.WHITE if is_dark else ft.Colors.BLACK)),
+        bgcolor=ft.Colors.with_opacity(0.2, ft.Colors.SURFACE),
+        border=ft.BorderSide(1, ft.Colors.with_opacity(0.2, ft.Colors.WHITE)),
         shadow=ft.BoxShadow(
             blur_radius=30,
             spread_radius=0,
-            color=ft.Colors.with_opacity(0.3 if is_dark else 0.15, ft.Colors.BLACK),
+            color=ft.Colors.with_opacity(0.3, ft.Colors.BLACK),
             offset=ft.Offset(0, 10),
         ),
         content=ft.Column(
@@ -34,12 +34,12 @@ def create_stats_view(settings, t):
                 ft.Container(
                     padding=18,
                     border_radius=16,
-                    bgcolor=ft.Colors.with_opacity(0.25 if is_dark else 0.45, ft.Colors.SURFACE_CONTAINER),
-                    border=ft.BorderSide(1, ft.Colors.with_opacity(0.2, ft.Colors.WHITE if is_dark else ft.Colors.BLACK)),
+                    bgcolor=ft.Colors.with_opacity(0.25, ft.Colors.SURFACE_CONTAINER),
+                    border=ft.BorderSide(1, ft.Colors.with_opacity(0.2, ft.Colors.WHITE)),
                     shadow=ft.BoxShadow(
                         blur_radius=20,
                         spread_radius=0,
-                        color=ft.Colors.with_opacity(0.2 if is_dark else 0.1, ft.Colors.BLACK),
+                        color=ft.Colors.with_opacity(0.2, ft.Colors.BLACK),
                         offset=ft.Offset(0, 5),
                     ),
                     content=ft.Column(
@@ -62,13 +62,13 @@ def create_stats_view(settings, t):
 
     def update_stats(stats):
         if stats:
-            my_currency_symbol = stats.get('my_currency_symbol', settings.get('my_currency_symbol', '¥'))
-            st_total_cost.value = f"{my_currency_symbol} {money(stats['total_cost'])}"
-            st_total_net.value = f"{my_currency_symbol} {money(stats['total_net'])}"
-            st_total_sell.value = f"{my_currency_symbol} {money(stats['total_steam_sell'])}"
-            st_total_qty.value = f"{stats['total_qty']}"
-            st_ratio.value = pct(stats["ratio"]) if stats["total_net"] > 0 else "-"
-            st_discount.value = pct(stats["discount"]) if stats["total_net"] > 0 else "-"
+            my_currency_symbol = settings.my_currency_symbol
+            st_total_cost.value = f"{my_currency_symbol} {money(stats.total_cost)}"
+            st_total_net.value = f"{my_currency_symbol} {money(stats.total_net)}"
+            st_total_sell.value = f"{my_currency_symbol} {money(stats.total_sell)}"
+            st_total_qty.value = f"{stats.total_qty}"
+            st_ratio.value = pct(stats.avg_ratio) if stats.total_net > 0 else "-"
+            st_discount.value = pct(stats.avg_discount) if stats.total_net > 0 else "-"
         else:
             st_total_cost.value = "-"
             st_total_net.value = "-"

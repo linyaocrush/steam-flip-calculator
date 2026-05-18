@@ -8,16 +8,16 @@ from glassmorphism import get_glassmorphism_style
 
 
 def create_settings_view(settings, snack, t, page):
-    is_dark = settings.get("theme_mode") == "DARK"
+    is_dark = True
     
     tf_buy_currency = ft.Dropdown(
         label=t("buy_currency"),
         options=[ft.dropdown.Option(code, f"{code} - {CURRENCY_SYMBOLS[code]}") for code in CURRENCY_CODES],
-        value=settings["buy_currency"],
+        value=settings.buy_currency,
         expand=True,
         filled=True,
-        bgcolor=ft.Colors.with_opacity(0.3 if is_dark else 0.5, ft.Colors.SURFACE),
-        border_color=ft.Colors.with_opacity(0.2, ft.Colors.WHITE if is_dark else ft.Colors.BLACK),
+        bgcolor=ft.Colors.with_opacity(0.1, ft.Colors.SURFACE),
+        border_color=ft.Colors.with_opacity(0.2, ft.Colors.WHITE),
         focused_border_color=ft.Colors.with_opacity(0.5, ft.Colors.INDIGO),
         border_radius=12,
         content_padding=12,
@@ -26,24 +26,24 @@ def create_settings_view(settings, snack, t, page):
     tf_sell_currency = ft.Dropdown(
         label=t("sell_currency"),
         options=[ft.dropdown.Option(code, f"{code} - {CURRENCY_SYMBOLS[code]}") for code in CURRENCY_CODES],
-        value=settings["sell_currency"],
+        value=settings.sell_currency,
         expand=True,
         filled=True,
-        bgcolor=ft.Colors.with_opacity(0.3 if is_dark else 0.5, ft.Colors.SURFACE),
-        border_color=ft.Colors.with_opacity(0.2, ft.Colors.WHITE if is_dark else ft.Colors.BLACK),
+        bgcolor=ft.Colors.with_opacity(0.1, ft.Colors.SURFACE),
+        border_color=ft.Colors.with_opacity(0.2, ft.Colors.WHITE),
         focused_border_color=ft.Colors.with_opacity(0.5, ft.Colors.INDIGO),
         border_radius=12,
         content_padding=12,
     )
     
     tf_exchange_rate = ft.TextField(
-        label=t("exchange_rate", from_curr=settings["buy_currency"], to_curr=settings["sell_currency"]),
-        value=str(settings["exchange_rate"]),
+        label=t("exchange_rate", from_curr=settings.buy_currency, to_curr=settings.sell_currency),
+        value=str(settings.exchange_rate),
         keyboard_type=ft.KeyboardType.NUMBER,
         expand=True,
         filled=True,
-        bgcolor=ft.Colors.with_opacity(0.3 if is_dark else 0.5, ft.Colors.SURFACE),
-        border_color=ft.Colors.with_opacity(0.2, ft.Colors.WHITE if is_dark else ft.Colors.BLACK),
+        bgcolor=ft.Colors.with_opacity(0.1, ft.Colors.SURFACE),
+        border_color=ft.Colors.with_opacity(0.2, ft.Colors.WHITE),
         focused_border_color=ft.Colors.with_opacity(0.5, ft.Colors.INDIGO),
         border_radius=12,
         content_padding=12,
@@ -51,28 +51,12 @@ def create_settings_view(settings, snack, t, page):
     
     tf_fee_rate = ft.TextField(
         label=t("fee_rate"),
-        value=str(settings["steam_fee_rate"] * 100),
+        value=str(settings.steam_fee_rate * 100),
         keyboard_type=ft.KeyboardType.NUMBER,
         width=150,
         filled=True,
-        bgcolor=ft.Colors.with_opacity(0.3 if is_dark else 0.5, ft.Colors.SURFACE),
-        border_color=ft.Colors.with_opacity(0.2, ft.Colors.WHITE if is_dark else ft.Colors.BLACK),
-        focused_border_color=ft.Colors.with_opacity(0.5, ft.Colors.INDIGO),
-        border_radius=12,
-        content_padding=12,
-    )
-    
-    dd_theme_mode = ft.Dropdown(
-        label=t("theme_mode"),
-        options=[
-            ft.dropdown.Option("LIGHT", t("theme_light")),
-            ft.dropdown.Option("DARK", t("theme_dark")),
-        ],
-        value=settings["theme_mode"],
-        width=150,
-        filled=True,
-        bgcolor=ft.Colors.with_opacity(0.3 if is_dark else 0.5, ft.Colors.SURFACE),
-        border_color=ft.Colors.with_opacity(0.2, ft.Colors.WHITE if is_dark else ft.Colors.BLACK),
+        bgcolor=ft.Colors.with_opacity(0.1, ft.Colors.SURFACE),
+        border_color=ft.Colors.with_opacity(0.2, ft.Colors.WHITE),
         focused_border_color=ft.Colors.with_opacity(0.5, ft.Colors.INDIGO),
         border_radius=12,
         content_padding=12,
@@ -81,11 +65,11 @@ def create_settings_view(settings, snack, t, page):
     dd_my_currency = ft.Dropdown(
         label=t("my_currency"),
         options=[ft.dropdown.Option(code, f"{code} - {CURRENCY_SYMBOLS[code]}") for code in CURRENCY_CODES],
-        value=settings["my_currency"],
+        value=settings.my_currency,
         expand=True,
         filled=True,
-        bgcolor=ft.Colors.with_opacity(0.3 if is_dark else 0.5, ft.Colors.SURFACE),
-        border_color=ft.Colors.with_opacity(0.2, ft.Colors.WHITE if is_dark else ft.Colors.BLACK),
+        bgcolor=ft.Colors.with_opacity(0.1, ft.Colors.SURFACE),
+        border_color=ft.Colors.with_opacity(0.2, ft.Colors.WHITE),
         focused_border_color=ft.Colors.with_opacity(0.5, ft.Colors.INDIGO),
         border_radius=12,
         content_padding=12,
@@ -94,11 +78,11 @@ def create_settings_view(settings, snack, t, page):
     dd_language = ft.Dropdown(
         label=t("language"),
         options=[ft.dropdown.Option(code, LANGUAGE_LABELS[code]) for code in LANGUAGE_CODES],
-        value=settings.get("language", "zh"),
+        value=settings.language,
         expand=True,
         filled=True,
-        bgcolor=ft.Colors.with_opacity(0.3 if is_dark else 0.5, ft.Colors.SURFACE),
-        border_color=ft.Colors.with_opacity(0.2, ft.Colors.WHITE if is_dark else ft.Colors.BLACK),
+        bgcolor=ft.Colors.with_opacity(0.1, ft.Colors.SURFACE),
+        border_color=ft.Colors.with_opacity(0.2, ft.Colors.WHITE),
         focused_border_color=ft.Colors.with_opacity(0.5, ft.Colors.INDIGO),
         border_radius=12,
         content_padding=12,
@@ -140,7 +124,6 @@ def create_settings_view(settings, snack, t, page):
         tf_sell_currency.on_change = on_change
         tf_exchange_rate.on_change = on_change
         tf_fee_rate.on_change = on_change
-        dd_theme_mode.on_change = on_change
         dd_my_currency.on_change = on_change
         dd_language.on_change = on_change
 
@@ -163,7 +146,6 @@ def create_settings_view(settings, snack, t, page):
         tf_sell_currency.value = "CNY"
         tf_exchange_rate.value = "1.0"
         tf_fee_rate.value = "15.0"
-        dd_theme_mode.value = "LIGHT"
         dd_my_currency.value = "CNY"
         dd_language.value = "zh"
         update_exchange_label()
@@ -174,12 +156,12 @@ def create_settings_view(settings, snack, t, page):
     settings_view = ft.Container(
         padding=20,
         border_radius=18,
-        bgcolor=ft.Colors.with_opacity(0.2 if is_dark else 0.4, ft.Colors.SURFACE),
-        border=ft.BorderSide(1, ft.Colors.with_opacity(0.2, ft.Colors.WHITE if is_dark else ft.Colors.BLACK)),
+        bgcolor=ft.Colors.with_opacity(0.1, ft.Colors.SURFACE),
+        border=ft.BorderSide(1, ft.Colors.with_opacity(0.2, ft.Colors.WHITE)),
         shadow=ft.BoxShadow(
             blur_radius=30,
             spread_radius=0,
-            color=ft.Colors.with_opacity(0.3 if is_dark else 0.15, ft.Colors.BLACK),
+            color=ft.Colors.with_opacity(0.3, ft.Colors.BLACK),
             offset=ft.Offset(0, 10),
         ),
         content=ft.Column(
@@ -195,12 +177,12 @@ def create_settings_view(settings, snack, t, page):
                 ft.Container(
                     padding=18,
                     border_radius=16,
-                    bgcolor=ft.Colors.with_opacity(0.25 if is_dark else 0.45, ft.Colors.SURFACE_CONTAINER),
-                    border=ft.BorderSide(1, ft.Colors.with_opacity(0.2, ft.Colors.WHITE if is_dark else ft.Colors.BLACK)),
+                    bgcolor=ft.Colors.with_opacity(0.15, ft.Colors.SURFACE_CONTAINER),
+                    border=ft.BorderSide(1, ft.Colors.with_opacity(0.2, ft.Colors.WHITE)),
                     shadow=ft.BoxShadow(
                         blur_radius=20,
                         spread_radius=0,
-                        color=ft.Colors.with_opacity(0.2 if is_dark else 0.1, ft.Colors.BLACK),
+                        color=ft.Colors.with_opacity(0.2, ft.Colors.BLACK),
                         offset=ft.Offset(0, 5),
                     ),
                     content=ft.Column(
@@ -208,8 +190,7 @@ def create_settings_view(settings, snack, t, page):
                         controls=[
                             ft.Row([tf_buy_currency, tf_sell_currency], spacing=14),
                             ft.Row([tf_exchange_rate, btn_fetch_rate, tf_fee_rate], spacing=14),
-                            ft.Row([dd_theme_mode, dd_language], spacing=14),
-                            ft.Row([dd_my_currency], spacing=14),
+                            ft.Row([dd_my_currency, dd_language], spacing=14),
                         ],
                     ),
                 ),
@@ -221,7 +202,6 @@ def create_settings_view(settings, snack, t, page):
                         ft.Text(t("sell_currency_desc"), size=13, opacity=0.8),
                         ft.Text(t("exchange_rate_desc"), size=13, opacity=0.8),
                         ft.Text(t("fee_rate_desc"), size=13, opacity=0.8),
-                        ft.Text(t("theme_mode_desc"), size=13, opacity=0.8),
                         ft.Text(t("my_currency_desc"), size=13, opacity=0.8),
                         ft.Text(t("language_desc"), size=13, opacity=0.8),
                     ],
@@ -261,7 +241,6 @@ def create_settings_view(settings, snack, t, page):
         "tf_sell_currency": tf_sell_currency,
         "tf_exchange_rate": tf_exchange_rate,
         "tf_fee_rate": tf_fee_rate,
-        "dd_theme_mode": dd_theme_mode,
         "dd_my_currency": dd_my_currency,
         "dd_language": dd_language,
         "btn_fetch_rate": btn_fetch_rate,

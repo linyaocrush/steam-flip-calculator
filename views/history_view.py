@@ -23,29 +23,29 @@ def create_history_view(settings, snack, t):
     def row_for_record(record, refresh_callback):
         return ft.DataRow(
             cells=[
-                ft.DataCell(ft.Text(record["ts"], size=11)),
+                ft.DataCell(ft.Text(record.ts, size=11)),
                 ft.DataCell(
                     ft.Column(
                         spacing=2,
                         tight=True,
                         controls=[
-                            ft.Text(record["item_name"], size=12, weight=ft.FontWeight.W_500),
-                            ft.Text(record["note"], size=10, color=ft.Colors.GREY) if record["note"] else ft.Container(),
+                            ft.Text(record.item_name, size=12, weight=ft.FontWeight.W_500),
+                            ft.Text(record.note, size=10, color=ft.Colors.GREY) if record.note else ft.Container(),
                         ],
                     )
                 ),
-                ft.DataCell(ft.Text(f"{record['buy_currency_symbol']} {money(record['unit_cost'])}", size=11)),
-                ft.DataCell(ft.Text(f"{record['sell_currency_symbol']} {money(record['unit_steam_sell'])}", size=11)),
-                ft.DataCell(ft.Text(f"{record['sell_currency_symbol']} {money(record['unit_net'])}", size=11)),
-                ft.DataCell(ft.Text(f"{record['buy_currency_symbol']} {money(record['total_cost'])}", size=11)),
-                ft.DataCell(ft.Text(f"{record['sell_currency_symbol']} {money(record['total_net'])}", size=11)),
-                ft.DataCell(ft.Text(pct(record['discount']), size=11)),
+                ft.DataCell(ft.Text(f"{record.buy_currency_symbol} {money(record.unit_cost)}", size=11)),
+                ft.DataCell(ft.Text(f"{record.sell_currency_symbol} {money(record.unit_steam_sell)}", size=11)),
+                ft.DataCell(ft.Text(f"{record.sell_currency_symbol} {money(record.unit_net)}", size=11)),
+                ft.DataCell(ft.Text(f"{record.buy_currency_symbol} {money(record.total_cost)}", size=11)),
+                ft.DataCell(ft.Text(f"{record.sell_currency_symbol} {money(record.total_net)}", size=11)),
+                ft.DataCell(ft.Text(pct(record.discount), size=11)),
                 ft.DataCell(
                     ft.IconButton(
                         ft.Icons.DELETE_OUTLINE,
                         icon_color=ft.Colors.RED,
                         tooltip=t("delete"),
-                        on_click=lambda _, rid=record["id"]: delete_record(rid, refresh_callback),
+                        on_click=lambda _, rid=record.id: delete_record(rid, refresh_callback),
                     )
                 ),
             ],

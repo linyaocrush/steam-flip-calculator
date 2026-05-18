@@ -23,7 +23,7 @@ def main(page: ft.Page):
     page.title = "Steam 倒余额工具箱"
     page.window_width = 1040
     page.window_height = 760
-    page.theme_mode = ft.ThemeMode.LIGHT
+    page.theme_mode = ft.ThemeMode.DARK
 
     page.theme = ft.Theme(
         use_material3=True,
@@ -34,13 +34,13 @@ def main(page: ft.Page):
     init_db()
     
     settings = get_settings()
-    page.theme_mode = ft.ThemeMode.DARK if settings.get("theme_mode") == "DARK" else ft.ThemeMode.LIGHT
-    page.title = get_text("app_title", settings.get("language", "zh"))
+    page.theme_mode = ft.ThemeMode.DARK
+    page.title = get_text("app_title", settings.language)
 
     page.bgcolor = ft.Colors.TRANSPARENT
 
     def get_t():
-        lang = settings.get("language", "zh")
+        lang = settings.language
         return lambda key, **kwargs: get_text(key, lang, **kwargs)
 
     t = get_t()
@@ -103,7 +103,6 @@ def main(page: ft.Page):
     recalc = calculator["recalc"]
     tf_cost = calculator["tf_cost"]
     tf_steam_sell = calculator["tf_steam_sell"]
-    reverse_box = calculator["reverse_box"]
 
     history = create_history_view(settings, snack, t)
     dt = history["dt"]
@@ -219,7 +218,6 @@ def main(page: ft.Page):
     tf_sell_currency = settings_ui["tf_sell_currency"]
     tf_exchange_rate = settings_ui["tf_exchange_rate"]
     tf_fee_rate = settings_ui["tf_fee_rate"]
-    dd_theme_mode = settings_ui["dd_theme_mode"]
     dd_my_currency = settings_ui["dd_my_currency"]
     dd_language = settings_ui["dd_language"]
     btn_fetch_rate = settings_ui["btn_fetch_rate"]
@@ -259,11 +257,13 @@ def main(page: ft.Page):
     btn_fetch_rate.on_click = fetch_exchange_rate_handler
 
     def save_settings_click(_):
+        current_settings = get_settings()
+        old_language = current_settings.language
+        
         buy_currency = tf_buy_currency.value or "CNY"
         sell_currency = tf_sell_currency.value or "CNY"
         exchange_rate = safe_float(tf_exchange_rate.value)
         fee_rate = safe_float(tf_fee_rate.value) / 100.0
-        theme_mode = dd_theme_mode.value or "LIGHT"
         my_currency = dd_my_currency.value or "CNY"
         language = dd_language.value or "zh"
 
@@ -280,23 +280,21 @@ def main(page: ft.Page):
             "sell_currency_symbol": CURRENCY_SYMBOLS[sell_currency],
             "exchange_rate": exchange_rate,
             "steam_fee_rate": fee_rate,
-            "theme_mode": theme_mode,
             "my_currency": my_currency,
             "my_currency_symbol": CURRENCY_SYMBOLS[my_currency],
             "language": language,
         }
 
-        saved_settings = save_settings(new_settings)
-
-        old_language = settings.get("language", "zh")
-        settings.update(saved_settings)
+        from models import Settings
+        settings_obj = Settings(**new_settings)
+        saved_settings = save_settings(settings_obj)
+        settings = saved_settings
         
-        page.theme_mode = ft.ThemeMode.DARK if theme_mode == "DARK" else ft.ThemeMode.LIGHT
+        page.theme_mode = ft.ThemeMode.DARK
         tf_exchange_rate.label = t("exchange_rate", from_curr=buy_currency, to_curr=sell_currency)
         snack.content = ft.Text(t("saved"))
-        tf_cost.prefix = ft.Text(settings["buy_currency_symbol"])
-        tf_steam_sell.prefix = ft.Text(settings["sell_currency_symbol"])
-        reverse_box.content.controls[1].value = t("steam_fee", fee=fee_rate * 100)
+        tf_cost.prefix = ft.Text(settings.buy_currency_symbol)
+        tf_steam_sell.prefix = ft.Text(settings.sell_currency_symbol)
         recalc()
         update_save_status(True)
         page.update()
@@ -306,10 +304,6 @@ def main(page: ft.Page):
             rebuild_ui()
 
     save_button.on_click = save_settings_click
-
-    def toggle_theme(_):
-        page.theme_mode = ft.ThemeMode.DARK if page.theme_mode == ft.ThemeMode.LIGHT else ft.ThemeMode.LIGHT
-        page.update()
 
     def switch_view(view_name):
         calc_card.visible = (view_name == "calculator")
@@ -385,7 +379,6 @@ def main(page: ft.Page):
                                 ft.Text(t("app_title"), size=22, weight=ft.FontWeight.W_700, color=ft.Colors.WHITE if is_dark else ft.Colors.BLACK),
                             ],
                         ),
-                        create_glass_button(t("toggle_theme"), ft.Icons.DARK_MODE_OUTLINED, toggle_theme, is_dark, False),
                     ],
                 ),
                 ft.Container(

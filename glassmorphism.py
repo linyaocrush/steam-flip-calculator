@@ -3,30 +3,17 @@ import flet as ft
 
 def get_glassmorphism_style(is_dark=False):
     """获取毛玻璃效果样式"""
-    if is_dark:
-        return {
-            "bgcolor": ft.Colors.with_opacity(0.15, ft.Colors.BLACK),
-            "blur": 20,
-            "border": ft.BorderSide(1, ft.Colors.with_opacity(0.2, ft.Colors.WHITE)),
-            "shadow": ft.BoxShadow(
-                blur_radius=30,
-                spread_radius=0,
-                color=ft.Colors.with_opacity(0.3, ft.Colors.BLACK),
-                offset=ft.Offset(0, 10),
-            ),
-        }
-    else:
-        return {
-            "bgcolor": ft.Colors.with_opacity(0.6, ft.Colors.WHITE),
-            "blur": 20,
-            "border": ft.BorderSide(1, ft.Colors.with_opacity(0.3, ft.Colors.WHITE)),
-            "shadow": ft.BoxShadow(
-                blur_radius=30,
-                spread_radius=0,
-                color=ft.Colors.with_opacity(0.15, ft.Colors.BLACK),
-                offset=ft.Offset(0, 10),
-            ),
-        }
+    return {
+        "bgcolor": ft.Colors.with_opacity(0.15, ft.Colors.BLACK),
+        "blur": 20,
+        "border": ft.BorderSide(1, ft.Colors.with_opacity(0.2, ft.Colors.WHITE)),
+        "shadow": ft.BoxShadow(
+            blur_radius=30,
+            spread_radius=0,
+            color=ft.Colors.with_opacity(0.3, ft.Colors.BLACK),
+            offset=ft.Offset(0, 10),
+        ),
+    }
 
 
 def create_glass_container(content, border_radius=16, padding=16, is_dark=False):
@@ -45,56 +32,31 @@ def create_glass_container(content, border_radius=16, padding=16, is_dark=False)
 
 def create_gradient_background(is_dark=False):
     """创建渐变背景"""
-    if is_dark:
-        return ft.Container(
-            width=float("inf"),
-            height=float("inf"),
-            gradient=ft.LinearGradient(
-                begin=ft.Alignment(-1, -1),
-                end=ft.Alignment(1, 1),
-                colors=[
-                    "#1a1a2e",
-                    "#16213e",
-                    "#0f3460",
-                    "#1a1a2e",
-                ],
-                stops=[0.0, 0.3, 0.7, 1.0],
-            ),
-        )
-    else:
-        return ft.Container(
-            width=float("inf"),
-            height=float("inf"),
-            gradient=ft.LinearGradient(
-                begin=ft.Alignment(-1, -1),
-                end=ft.Alignment(1, 1),
-                colors=[
-                    "#667eea",
-                    "#764ba2",
-                    "#f093fb",
-                    "#f5576c",
-                ],
-                stops=[0.0, 0.3, 0.7, 1.0],
-            ),
-        )
+    return ft.Container(
+        width=float("inf"),
+        height=float("inf"),
+        gradient=ft.LinearGradient(
+            begin=ft.Alignment(-1, -1),
+            end=ft.Alignment(1, 1),
+            colors=[
+                "#1a1a2e",
+                "#16213e",
+                "#0f3460",
+                "#1a1a2e",
+            ],
+            stops=[0.0, 0.3, 0.7, 1.0],
+        ),
+    )
 
 
 def create_floating_orbs(is_dark=False):
     """创建浮动装饰球体"""
-    if is_dark:
-        colors = [
-            ft.Colors.with_opacity(0.15, ft.Colors.PURPLE),
-            ft.Colors.with_opacity(0.12, ft.Colors.BLUE),
-            ft.Colors.with_opacity(0.1, ft.Colors.CYAN),
-            ft.Colors.with_opacity(0.08, ft.Colors.PINK),
-        ]
-    else:
-        colors = [
-            ft.Colors.with_opacity(0.25, ft.Colors.PURPLE),
-            ft.Colors.with_opacity(0.2, ft.Colors.PINK),
-            ft.Colors.with_opacity(0.15, ft.Colors.BLUE),
-            ft.Colors.with_opacity(0.1, ft.Colors.CYAN),
-        ]
+    colors = [
+        ft.Colors.with_opacity(0.15, ft.Colors.PURPLE),
+        ft.Colors.with_opacity(0.12, ft.Colors.BLUE),
+        ft.Colors.with_opacity(0.1, ft.Colors.CYAN),
+        ft.Colors.with_opacity(0.08, ft.Colors.PINK),
+    ]
     
     orbs = []
     
@@ -144,7 +106,7 @@ def create_glass_button(text, icon=None, on_click=None, is_dark=False, is_filled
             icon=icon,
             on_click=on_click,
             style=ft.ButtonStyle(
-                bgcolor=ft.Colors.with_opacity(0.8, ft.Colors.INDIGO if is_dark else ft.Colors.PURPLE),
+                bgcolor=ft.Colors.with_opacity(0.8, ft.Colors.INDIGO),
                 color=ft.Colors.WHITE,
                 padding=16,
                 shape=ft.RoundedRectangleBorder(radius=12),
@@ -156,7 +118,7 @@ def create_glass_button(text, icon=None, on_click=None, is_dark=False, is_filled
             icon=icon,
             on_click=on_click,
             style=ft.ButtonStyle(
-                side=ft.BorderSide(1, ft.Colors.with_opacity(0.3, ft.Colors.WHITE if is_dark else ft.Colors.BLACK)),
+                side=ft.BorderSide(1, ft.Colors.with_opacity(0.3, ft.Colors.WHITE)),
                 padding=16,
                 shape=ft.RoundedRectangleBorder(radius=12),
             ),
@@ -173,21 +135,21 @@ def create_glass_card(content, is_dark=False, elevation=2):
         shadow = ft.BoxShadow(
             blur_radius=20,
             spread_radius=0,
-            color=ft.Colors.with_opacity(0.2 if is_dark else 0.1, ft.Colors.BLACK),
+            color=ft.Colors.with_opacity(0.2, ft.Colors.BLACK),
             offset=ft.Offset(0, 5),
         )
     elif elevation == 2:
         shadow = ft.BoxShadow(
             blur_radius=30,
             spread_radius=0,
-            color=ft.Colors.with_opacity(0.3 if is_dark else 0.15, ft.Colors.BLACK),
+            color=ft.Colors.with_opacity(0.3, ft.Colors.BLACK),
             offset=ft.Offset(0, 10),
         )
     else:
         shadow = ft.BoxShadow(
             blur_radius=40,
             spread_radius=0,
-            color=ft.Colors.with_opacity(0.4 if is_dark else 0.2, ft.Colors.BLACK),
+            color=ft.Colors.with_opacity(0.4, ft.Colors.BLACK),
             offset=ft.Offset(0, 15),
         )
     
@@ -214,8 +176,8 @@ def create_glass_text_field(label, value="", prefix=None, keyboard_type=None, ex
         width=width,
         hint_text=hint_text,
         filled=True,
-        bgcolor=ft.Colors.with_opacity(0.3 if is_dark else 0.5, ft.Colors.SURFACE),
-        border_color=ft.Colors.with_opacity(0.2, ft.Colors.WHITE if is_dark else ft.Colors.BLACK),
+        bgcolor=ft.Colors.with_opacity(0.3, ft.Colors.SURFACE),
+        border_color=ft.Colors.with_opacity(0.2, ft.Colors.WHITE),
         focused_border_color=ft.Colors.with_opacity(0.5, ft.Colors.INDIGO),
         border_radius=12,
         content_padding=12,
@@ -233,8 +195,8 @@ def create_glass_dropdown(label, options, value, expand=True, width=None, is_dar
         expand=expand,
         width=width,
         filled=True,
-        bgcolor=ft.Colors.with_opacity(0.3 if is_dark else 0.5, ft.Colors.SURFACE),
-        border_color=ft.Colors.with_opacity(0.2, ft.Colors.WHITE if is_dark else ft.Colors.BLACK),
+        bgcolor=ft.Colors.with_opacity(0.3, ft.Colors.SURFACE),
+        border_color=ft.Colors.with_opacity(0.2, ft.Colors.WHITE),
         focused_border_color=ft.Colors.with_opacity(0.5, ft.Colors.INDIGO),
         border_radius=12,
         content_padding=12,

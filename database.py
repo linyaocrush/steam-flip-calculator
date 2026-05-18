@@ -3,8 +3,10 @@ from contextlib import contextmanager
 from datetime import datetime
 import threading
 import time
-from typing import Optional, Dict, Any
-from config import DB_PATH
+import os
+from typing import Optional, Dict, Any, List
+from config import DB_PATH, DATA_DIR
+from models import Settings, HistoryRecord, StatsData, Currency
 
 _thread_local_db = threading.local()
 
@@ -12,6 +14,7 @@ _thread_local_db = threading.local()
 def get_db_connection():
     conn = getattr(_thread_local_db, 'connection', None)
     if conn is None:
+        os.makedirs(DATA_DIR, exist_ok=True)
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         _thread_local_db.connection = conn
@@ -30,6 +33,7 @@ def get_db():
 
 
 def init_db():
+    os.makedirs(DATA_DIR, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute(
@@ -84,7 +88,7 @@ def init_db():
     
     cur.execute("SELECT COUNT(*) FROM settings")
     if cur.fetchone()[0] == 0:
-        from config import DEFAULT_SETTINGS
+        default_settings = Settings()
         cur.execute(
             """
             INSERT INTO settings (id, buy_currency, buy_currency_symbol, sell_currency, sell_currency_symbol,
@@ -92,16 +96,16 @@ def init_db():
             VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                DEFAULT_SETTINGS["buy_currency"],
-                DEFAULT_SETTINGS["buy_currency_symbol"],
-                DEFAULT_SETTINGS["sell_currency"],
-                DEFAULT_SETTINGS["sell_currency_symbol"],
-                DEFAULT_SETTINGS["exchange_rate"],
-                DEFAULT_SETTINGS["steam_fee_rate"],
-                DEFAULT_SETTINGS["theme_mode"],
-                DEFAULT_SETTINGS["my_currency"],
-                DEFAULT_SETTINGS["my_currency_symbol"],
-                DEFAULT_SETTINGS["language"],
+                default_settings.buy_currency,
+                default_settings.buy_currency_symbol,
+                default_settings.sell_currency,
+                default_settings.sell_currency_symbol,
+                default_settings.exchange_rate,
+                default_settings.steam_fee_rate,
+                default_settings.theme_mode,
+                default_settings.my_currency,
+                default_settings.my_currency_symbol,
+                default_settings.language,
             )
         )
     
@@ -147,7 +151,7 @@ def invalidate_stats_cache():
     _stats_cache.invalidate()
 
 
-def get_settings() -> Dict[str, Any]:
+def get_settings() -> Settings:
     if _settings_cache.is_valid():
         return _settings_cache.get()
 
@@ -157,7 +161,7 @@ def get_settings() -> Dict[str, Any]:
         row = cur.fetchone()
         
         if row:
-            response_data = {
+            settings_data = {
                 "buy_currency": row["buy_currency"],
                 "buy_currency_symbol": row["buy_currency_symbol"],
                 "sell_currency": row["sell_currency"],
@@ -170,15 +174,15 @@ def get_settings() -> Dict[str, Any]:
                 "exchange_rate_updated_at": row["exchange_rate_updated_at"],
                 "language": row["language"]
             }
+            settings = Settings(**settings_data)
         else:
-            from config import DEFAULT_SETTINGS
-            response_data = DEFAULT_SETTINGS.copy()
+            settings = Settings()
 
-    _settings_cache.set(response_data)
-    return response_data
+    _settings_cache.set(settings)
+    return settings
 
 
-def save_settings(data: Dict[str, Any]) -> Dict[str, Any]:
+def save_settings(settings: Settings) -> Settings:
     with get_db() as conn:
         cur = conn.cursor()
         cur.execute(
@@ -197,33 +201,34 @@ def save_settings(data: Dict[str, Any]) -> Dict[str, Any]:
             WHERE id = 1
             """,
             (
-                data["buy_currency"],
-                data["buy_currency_symbol"],
-                data["sell_currency"],
-                data["sell_currency_symbol"],
-                data["exchange_rate"],
-                data["steam_fee_rate"],
-                data["theme_mode"],
-                data["my_currency"],
-                data["my_currency_symbol"],
-                data["language"]
+                settings.buy_currency,
+                settings.buy_currency_symbol,
+                settings.sell_currency,
+                settings.sell_currency_symbol,
+                settings.exchange_rate,
+                settings.steam_fee_rate,
+                settings.theme_mode,
+                settings.my_currency,
+                settings.my_currency_symbol,
+                settings.language
             )
         )
 
     invalidate_settings_cache()
     invalidate_stats_cache()
 
-    return data
+    return settings
 
 
-def get_records(limit: int = 500) -> list:
+def get_records(limit: int = 500) -> List[HistoryRecord]:
     with get_db() as conn:
         cur = conn.cursor()
         cur.execute(
             """
             SELECT id, ts, item_name, COALESCE(note, '') as note,
                    unit_cost, unit_steam_sell, qty, unit_net, total_cost, total_net,
-                   sell_currency_symbol, buy_currency_symbol, my_currency_symbol,
+                   sell_currency, sell_currency_symbol, buy_currency, buy_currency_symbol,
+                   exchange_rate, my_currency, my_currency_symbol,
                    total_cost_in_my_currency, total_net_in_my_currency, discount
             FROM history
             ORDER BY id DESC
@@ -235,29 +240,36 @@ def get_records(limit: int = 500) -> list:
 
     records = []
     for row in rows:
-        records.append({
+        record_data = {
             "id": row["id"],
             "ts": row["ts"],
             "item_name": row["item_name"],
-            "note": row["note"],
+            "note": row["note"] if row["note"] else None,
             "unit_cost": row["unit_cost"],
             "unit_steam_sell": row["unit_steam_sell"],
             "qty": row["qty"],
             "unit_net": row["unit_net"],
             "total_cost": row["total_cost"],
+            "total_steam_sell": row["total_cost"] + row["total_net"],
             "total_net": row["total_net"],
+            "sell_currency": row["sell_currency"],
+            "sell_currency_symbol": row["sell_currency_symbol"],
+            "buy_currency": row["buy_currency"],
+            "buy_currency_symbol": row["buy_currency_symbol"],
+            "exchange_rate": row["exchange_rate"],
+            "my_currency": row["my_currency"],
+            "my_currency_symbol": row["my_currency_symbol"],
             "total_cost_in_my_currency": row["total_cost_in_my_currency"],
             "total_net_in_my_currency": row["total_net_in_my_currency"],
-            "sell_currency_symbol": row["sell_currency_symbol"],
-            "buy_currency_symbol": row["buy_currency_symbol"],
-            "my_currency_symbol": row["my_currency_symbol"],
+            "total_steam_sell_in_my_currency": row["total_cost_in_my_currency"] + row["total_net_in_my_currency"],
             "discount": row["discount"]
-        })
+        }
+        records.append(HistoryRecord(**record_data))
 
     return records
 
 
-def add_record(data: Dict[str, Any]) -> bool:
+def add_record(record: HistoryRecord) -> bool:
     with get_db() as conn:
         cur = conn.cursor()
         cur.execute("SELECT sell_currency, sell_currency_symbol, buy_currency, buy_currency_symbol, my_currency, my_currency_symbol, exchange_rate FROM settings WHERE id = 1")
@@ -270,7 +282,7 @@ def add_record(data: Dict[str, Any]) -> bool:
         my_currency_symbol = row["my_currency_symbol"] if row else "¥"
         exchange_rate = row["exchange_rate"] if row else 1.0
         
-        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        ts = record.ts or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         cur.execute(
             """
@@ -284,14 +296,14 @@ def add_record(data: Dict[str, Any]) -> bool:
                                 total_steam_sell_in_my_currency, discount)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (ts, data["item_name"], data["note"], data["unit_cost"], data["unit_steam_sell"], data["qty"],
-             data["unit_net"], data["total_cost"], data["total_steam_sell"], data["total_net"],
+            (ts, record.item_name, record.note, record.unit_cost, record.unit_steam_sell, record.qty,
+             record.unit_net, record.total_cost, record.total_steam_sell, record.total_net,
              sell_currency, sell_currency_symbol,
              buy_currency, buy_currency_symbol,
              exchange_rate,
              my_currency, my_currency_symbol,
-             data["total_cost_in_my_currency"], data["total_net_in_my_currency"],
-             data["total_steam_sell_in_my_currency"], data["discount"]),
+             record.total_cost_in_my_currency, record.total_net_in_my_currency,
+             record.total_steam_sell_in_my_currency, record.discount),
         )
 
     invalidate_stats_cache()
@@ -316,7 +328,7 @@ def clear_records() -> bool:
     return True
 
 
-def get_stats() -> Dict[str, Any]:
+def get_stats() -> StatsData:
     if _stats_cache.is_valid():
         return _stats_cache.get()
 
@@ -324,35 +336,67 @@ def get_stats() -> Dict[str, Any]:
         cur = conn.cursor()
         
         cur.execute("SELECT my_currency, my_currency_symbol FROM settings WHERE id = 1")
-        settings_row = cur.fetchone()
-        current_my_currency = settings_row["my_currency"] if settings_row else "CNY"
-        current_my_currency_symbol = settings_row["my_currency_symbol"] if settings_row else "¥"
+        row = cur.fetchone()
+        my_currency = row["my_currency"] if row else "CNY"
+        my_currency_symbol = row["my_currency_symbol"] if row else "¥"
         
         cur.execute(
             """
-            SELECT
-                COALESCE(SUM(total_cost_in_my_currency), 0),
-                COALESCE(SUM(total_net_in_my_currency), 0),
-                COALESCE(SUM(total_steam_sell_in_my_currency), 0),
-                COALESCE(SUM(qty), 0)
+            SELECT 
+                COUNT(*) as count,
+                SUM(total_cost_in_my_currency) as total_cost,
+                SUM(total_net_in_my_currency) as total_net,
+                SUM(total_steam_sell_in_my_currency) as total_sell,
+                SUM(qty) as total_qty
             FROM history
             """
         )
-        total_cost, total_net, total_steam_sell, total_qty = cur.fetchone()
+        row = cur.fetchone()
+        
+        if row and row["count"] > 0:
+            stats_data = {
+                "total_cost": row["total_cost"] or 0.0,
+                "total_net": row["total_net"] or 0.0,
+                "total_sell": row["total_sell"] or 0.0,
+                "total_qty": row["total_qty"] or 0,
+                "avg_ratio": (row["total_net"] / row["total_cost"]) if row["total_cost"] > 0 else 0.0,
+                "avg_discount": 0.0
+            }
+            
+            cur.execute(
+                """
+                SELECT AVG(discount) as avg_discount
+                FROM history
+                WHERE discount IS NOT NULL
+                """
+            )
+            discount_row = cur.fetchone()
+            if discount_row and discount_row["avg_discount"]:
+                stats_data["avg_discount"] = discount_row["avg_discount"]
+        else:
+            stats_data = {
+                "total_cost": 0.0,
+                "total_net": 0.0,
+                "total_sell": 0.0,
+                "total_qty": 0,
+                "avg_ratio": 0.0,
+                "avg_discount": 0.0
+            }
 
-    ratio = (total_cost / total_net) if total_net > 0 else 0.0
-    discount = (1.0 - ratio) if total_net > 0 else 0.0
+    stats = StatsData(**stats_data)
+    _stats_cache.set(stats)
+    return stats
 
-    response_data = {
-        "total_cost": float(total_cost),
-        "total_net": float(total_net),
-        "total_steam_sell": float(total_steam_sell),
-        "total_qty": int(total_qty),
-        "ratio": float(ratio),
-        "discount": float(discount),
-        "my_currency": current_my_currency,
-        "my_currency_symbol": current_my_currency_symbol
-    }
 
-    _stats_cache.set(response_data)
-    return response_data
+def update_exchange_rate_updated_at(timestamp: Optional[str] = None):
+    if timestamp is None:
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE settings SET exchange_rate_updated_at = ? WHERE id = 1",
+            (timestamp,)
+        )
+    
+    invalidate_settings_cache()
