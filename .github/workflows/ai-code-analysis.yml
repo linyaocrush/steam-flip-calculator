@@ -15,18 +15,8 @@ on:
           - full
           - quick
         default: 'quick'
-      api_provider:
-        description: 'LLM API Provider'
-        required: false
-        type: choice
-        options:
-          - openai
-          - anthropic
-          - azure
-          - custom
-        default: 'openai'
       model_name:
-        description: 'Model name (e.g., gpt-4o-mini, claude-3-haiku)'
+        description: 'Model name (e.g., gpt-4o-mini, deepseek-chat, claude-3-haiku)'
         required: false
         type: string
         default: 'gpt-4o-mini'
@@ -92,45 +82,27 @@ jobs:
       - name: Analyze with LLM
         id: llm-analysis
         env:
-          API_KEY: ${{ secrets.LLM_API_KEY }}
-          AZURE_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          CUSTOM_API_KEY: ${{ secrets.CUSTOM_LLM_API_KEY }}
+          CUSTOM_LLM_API_KEY: ${{ secrets.CUSTOM_LLM_API_KEY }}
+          CUSTOM_LLM_ENDPOINT: ${{ secrets.CUSTOM_LLM_ENDPOINT }}
         run: |
-          API_PROVIDER="${{ github.event.inputs.api_provider || 'openai' }}"
           MODEL_NAME="${{ github.event.inputs.model_name || 'gpt-4o-mini' }}"
-          
-          case "$API_PROVIDER" in
-            openai)
-              API_KEY="$API_KEY"
-              API_URL="https://api.openai.com/v1/chat/completions"
-              ;;
-            anthropic)
-              API_KEY="$ANTHROPIC_API_KEY"
-              API_URL="https://api.anthropic.com/v1/messages"
-              ;;
-            azure)
-              API_KEY="$AZURE_API_KEY"
-              API_URL="${{ secrets.AZURE_OPENAI_ENDPOINT }}/openai/deployments/${MODEL_NAME}/chat/completions?api-version=2024-02-15-preview"
-              ;;
-            custom)
-              API_KEY="$CUSTOM_API_KEY"
-              API_URL="${{ secrets.CUSTOM_LLM_ENDPOINT }}"
-              ;;
-            *)
-              echo "Error: Unknown API provider: $API_PROVIDER"
-              exit 1
-              ;;
-          esac
+          API_KEY="$CUSTOM_LLM_API_KEY"
+          API_URL="$CUSTOM_LLM_ENDPOINT"
           
           if [ -z "$API_KEY" ]; then
-            echo "Error: API key not found for provider: $API_PROVIDER"
-            echo "Please configure the appropriate secret in GitHub repository settings"
+            echo "Error: CUSTOM_LLM_API_KEY not found in secrets"
+            echo "Please configure CUSTOM_LLM_API_KEY and CUSTOM_LLM_ENDPOINT in GitHub repository settings"
             exit 1
           fi
           
-          echo "Using API provider: $API_PROVIDER"
+          if [ -z "$API_URL" ]; then
+            echo "Error: CUSTOM_LLM_ENDPOINT not found in secrets"
+            echo "Please configure CUSTOM_LLM_API_KEY and CUSTOM_LLM_ENDPOINT in GitHub repository settings"
+            exit 1
+          fi
+          
           echo "Using model: $MODEL_NAME"
+          echo "API endpoint: $API_URL"
           
           cat > analysis_prompt.txt << 'EOF'
           你是一个专业的代码审查专家和产品经理。请分析以下代码变更，并提供功能建议和改进意见。
@@ -161,50 +133,42 @@ jobs:
 
           echo "Calling LLM API..."
           
-          case "$API_PROVIDER" in
-            openai|azure)
-              RESPONSE=$(curl -s "$API_URL" \
-                -H "Content-Type: application/json" \
-                -H "Authorization: Bearer $API_KEY" \
-                -d '{
-                  "model": "'"$MODEL_NAME"'",
-                  "messages": [
-                    {"role": "system", "content": "你是一个专业的代码审查专家和产品经理。"},
-                    {"role": "user", "content": "'"$(cat analysis_prompt.txt | sed 's/"/\\"/g' | tr '\n' ' ')"'"}
-                  ],
-                  "max_tokens": 2000,
-                  "temperature": 0.7
-                }')
-              ;;
-            anthropic)
-              RESPONSE=$(curl -s "$API_URL" \
-                -H "Content-Type: application/json" \
-                -H "x-api-key: $API_KEY" \
-                -H "anthropic-version: 2023-06-01" \
-                -d '{
-                  "model": "'"$MODEL_NAME"'",
-                  "max_tokens": 2000,
-                  "system": "你是一个专业的代码审查专家和产品经理。",
-                  "messages": [
-                    {"role": "user", "content": "'"$(cat analysis_prompt.txt | sed 's/"/\\"/g' | tr '\n' ' ')"'"}
-                  ]
-                }')
-              ;;
-            custom)
-              RESPONSE=$(curl -s "$API_URL" \
-                -H "Content-Type: application/json" \
-                -H "Authorization: Bearer $API_KEY" \
-                -d '{
-                  "model": "'"$MODEL_NAME"'",
-                  "messages": [
-                    {"role": "system", "content": "你是一个专业的代码审查专家和产品经理。"},
-                    {"role": "user", "content": "'"$(cat analysis_prompt.txt | sed 's/"/\\"/g' | tr '\n' ' ')"'"}
-                  ],
-                  "max_tokens": 2000,
-                  "temperature": 0.7
-                }')
-              ;;
-          esac
+          # Create temp files for request and response
+          REQ_FILE=$(mktemp)
+          RESP_FILE=$(mktemp)
+          
+          # Prepare request body (OpenAI-compatible format)
+          cat > "$REQ_FILE" << EOF
+{
+  "model": "$MODEL_NAME",
+  "messages": [
+    {"role": "system", "content": "你是一个专业的代码审查专家和产品经理。"},
+    {"role": "user", "content": $(cat analysis_prompt.txt | jq -Rs .)}
+  ],
+  "max_tokens": 2000,
+  "temperature": 0.7
+}
+EOF
+          
+          # Make API call (OpenAI-compatible format)
+          HTTP_CODE=$(curl -s -w "%{http_code}" -o "$RESP_FILE" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $API_KEY" \
+            -d @"$REQ_FILE" \
+            "$API_URL")
+          
+          echo "HTTP Status Code: $HTTP_CODE"
+          
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Error: API request failed with HTTP $HTTP_CODE"
+            echo "Response: $(cat $RESP_FILE)"
+            exit 1
+          fi
+          
+          RESPONSE=$(cat "$RESP_FILE")
+          
+          # Clean up temp files
+          rm -f "$REQ_FILE" "$RESP_FILE"
           
           echo "response<<EOF" >> $GITHUB_OUTPUT
           echo "$RESPONSE" >> $GITHUB_OUTPUT
@@ -214,13 +178,24 @@ jobs:
         id: extract-content
         run: |
           RESPONSE="${{ steps.llm-analysis.outputs.response }}"
-          ANALYSIS=$(echo "$RESPONSE" | jq -r '.choices[0].message.content')
+          
+          echo "Extracting content from response..."
+          
+          # Extract content from OpenAI-compatible format
+          ANALYSIS=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // .message.content // .content // .')
+          
+          # Check if extraction was successful
+          if [ -z "$ANALYSIS" ] || [ "$ANALYSIS" = "null" ]; then
+            echo "Error: Failed to extract content from response"
+            echo "Full response: $RESPONSE"
+            exit 1
+          fi
           
           echo "analysis<<EOF" >> $GITHUB_OUTPUT
           echo "$ANALYSIS" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
           
-          echo "Analysis completed successfully"
+          echo "Analysis extracted successfully"
 
       - name: Create Issue with analysis
         uses: actions/github-script@v7

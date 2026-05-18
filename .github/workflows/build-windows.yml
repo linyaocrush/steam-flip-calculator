@@ -34,7 +34,7 @@ jobs:
         include:
           - name: windows
             runner: windows-latest
-            build_cmd: "flet build windows"
+            build_cmd: "flet build windows --no-web-view"
             artifact_path: build/windows
             needs_linux_deps: false
     
