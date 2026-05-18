@@ -2,7 +2,7 @@ import flet as ft
 from utils import money, pct, safe_float, safe_int
 from calculator import calculate_local
 from glassmorphism import create_glass_card, get_glassmorphism_style
-from database import get_settings
+from app_state import app_state
 
 
 def create_calculator_view(settings, on_add_to_history, t):
@@ -95,7 +95,7 @@ def create_calculator_view(settings, on_add_to_history, t):
     out_required_cost = ft.Text(value="-")
 
     def format_price(amount, currency_symbol, currency_code):
-        current_settings = get_settings()
+        current_settings = app_state.get_settings()
         my_currency = current_settings.my_currency
         my_symbol = current_settings.my_currency_symbol
         
@@ -116,7 +116,7 @@ def create_calculator_view(settings, on_add_to_history, t):
         - 若 buy_currency == my_currency：直接显示 my_currency（不再显示 sell_currency + 括号）
         - 否则：沿用原来的 format_price 逻辑（卖出币种为主，括号里我的币种）
         """
-        current_settings = get_settings()
+        current_settings = app_state.get_settings()
         my_currency = current_settings.my_currency
         my_symbol = current_settings.my_currency_symbol
 
@@ -131,7 +131,7 @@ def create_calculator_view(settings, on_add_to_history, t):
         return format_price(amount_in_sell_currency, current_settings.buy_currency_symbol, current_settings.buy_currency)
 
     def recalc(_=None):
-        current_settings = get_settings()
+        current_settings = app_state.get_settings()
         unit_cost = safe_float(tf_cost.value)
         unit_sell = safe_float(tf_steam_sell.value)
         qty = safe_int(tf_qty.value)
@@ -161,7 +161,7 @@ def create_calculator_view(settings, on_add_to_history, t):
         return True
 
     def calc_target_qty(_=None):
-        current_settings = get_settings()
+        current_settings = app_state.get_settings()
         target_amount = safe_float(tf_target_amount.value)
         unit_cost = safe_float(tf_cost.value)
         unit_sell = safe_float(tf_steam_sell.value)
@@ -186,6 +186,7 @@ def create_calculator_view(settings, on_add_to_history, t):
         out_required_cost.value = format_cost(required_cost_display)
 
     def on_add(_):
+        current_settings = app_state.get_settings()
         item_name = (tf_item.value or "").strip()
         if not item_name:
             return
@@ -198,18 +199,18 @@ def create_calculator_view(settings, on_add_to_history, t):
         if unit_cost <= 0 or unit_sell <= 0:
             return
 
-        use_exchange = settings.buy_currency != settings.sell_currency
+        use_exchange = current_settings.buy_currency != current_settings.sell_currency
 
         data = calculate_local(
             unit_cost,
             unit_sell,
             qty,
             use_exchange,
-            settings.exchange_rate,
-            settings.steam_fee_rate,
-            settings.buy_currency,
-            settings.sell_currency,
-            settings.my_currency,
+            current_settings.exchange_rate,
+            current_settings.steam_fee_rate,
+            current_settings.buy_currency,
+            current_settings.sell_currency,
+            current_settings.my_currency,
         )
 
         record_data = {
@@ -235,6 +236,14 @@ def create_calculator_view(settings, on_add_to_history, t):
     tf_steam_sell.on_change = recalc
     tf_qty.on_change = recalc
     tf_target_amount.on_change = calc_target_qty
+
+    def on_settings_changed(new_settings):
+        tf_cost.prefix = ft.Text(new_settings.buy_currency_symbol)
+        tf_steam_sell.prefix = ft.Text(new_settings.sell_currency_symbol)
+        tf_target_amount.prefix = ft.Text(new_settings.sell_currency_symbol)
+        recalc()
+
+    app_state.subscribe(on_settings_changed)
 
     calc_card = ft.Container(
         padding=20,
@@ -357,7 +366,7 @@ def create_calculator_view(settings, on_add_to_history, t):
                                     ft.Column(
                                         spacing=6,
                                         controls=[
-                                            ft.Text(t("steam_fee", fee=settings.steam_fee_rate * 100), size=12),
+                                            ft.Text(t("steam_fee", fee=app_state.get_settings().steam_fee_rate * 100), size=12),
                                             ft.Row(
                                                 spacing=10,
                                                 controls=[

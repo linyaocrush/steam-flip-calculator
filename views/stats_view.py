@@ -1,6 +1,7 @@
 import flet as ft
 from utils import money, pct
 from glassmorphism import get_glassmorphism_style
+from app_state import app_state
 
 
 def create_stats_view(settings, t):
@@ -62,7 +63,8 @@ def create_stats_view(settings, t):
 
     def update_stats(stats):
         if stats:
-            my_currency_symbol = settings.my_currency_symbol
+            current_settings = app_state.get_settings()
+            my_currency_symbol = current_settings.my_currency_symbol
             st_total_cost.value = f"{my_currency_symbol} {money(stats.total_cost)}"
             st_total_net.value = f"{my_currency_symbol} {money(stats.total_net)}"
             st_total_sell.value = f"{my_currency_symbol} {money(stats.total_sell)}"
