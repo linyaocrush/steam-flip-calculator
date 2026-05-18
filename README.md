@@ -132,7 +132,6 @@ steam-flip-calculator/
 │       ├── history_view.py          # 历史记录视图
 │       ├── settings_view.py         # 设置视图
 │       └── stats_view.py            # 统计视图
-└── venv/                            # 虚拟环境（运行后自动生成）
 ```
 
 ## 技术栈
