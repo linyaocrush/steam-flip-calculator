@@ -31,38 +31,32 @@
 
 - Python 3.8 或更高版本
 
-### 快速开始
+### 安装步骤
 
 1. 克隆或下载项目到本地
 
-2. 运行启动脚本（Windows）：
+2. 创建虚拟环境：
    ```bash
-   start.bat
+   python -m venv venv
    ```
 
-   脚本会自动：
-   - 创建虚拟环境（如果不存在）
-   - 安装依赖
-   - 启动应用
+3. 激活虚拟环境：
+   ```bash
+   # Windows:
+   venv\Scripts\activate
+   # Linux/Mac:
+   source venv/bin/activate
+   ```
 
-### 手动安装
+4. 安装依赖：
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-```bash
-# 创建虚拟环境
-python -m venv venv
-
-# 激活虚拟环境
-# Windows:
-venv\Scripts\activate
-# Linux/Mac:
-source venv/bin/activate
-
-# 安装依赖
-pip install -r requirements.txt
-
-# 运行应用
-python main.py
-```
+5. 运行应用：
+   ```bash
+   python main.py
+   ```
 
 ## 使用说明
 
