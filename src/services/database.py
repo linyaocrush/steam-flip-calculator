@@ -73,7 +73,10 @@ def init_db():
             my_currency TEXT NOT NULL DEFAULT 'CNY',
             my_currency_symbol TEXT NOT NULL DEFAULT '¥',
             exchange_rate_updated_at TEXT,
-            language TEXT NOT NULL DEFAULT 'zh'
+            language TEXT NOT NULL DEFAULT 'zh',
+            last_item_name TEXT,
+            last_unit_cost REAL,
+            last_unit_sell REAL
         )
         """
     )
@@ -99,6 +102,15 @@ def init_db():
     columns = [column[1] for column in cur.fetchall()]
     if 'ratio' not in columns:
         cur.execute("ALTER TABLE history ADD COLUMN ratio REAL NOT NULL DEFAULT 0")
+    
+    cur.execute("PRAGMA table_info(settings)")
+    settings_columns = [column[1] for column in cur.fetchall()]
+    if 'last_item_name' not in settings_columns:
+        cur.execute("ALTER TABLE settings ADD COLUMN last_item_name TEXT")
+    if 'last_unit_cost' not in settings_columns:
+        cur.execute("ALTER TABLE settings ADD COLUMN last_unit_cost REAL")
+    if 'last_unit_sell' not in settings_columns:
+        cur.execute("ALTER TABLE settings ADD COLUMN last_unit_sell REAL")
     
     cur.execute("SELECT COUNT(*) FROM settings")
     if cur.fetchone()[0] == 0:
@@ -189,7 +201,10 @@ def get_settings() -> Settings:
                 "my_currency": row["my_currency"],
                 "my_currency_symbol": row["my_currency_symbol"],
                 "exchange_rate_updated_at": row["exchange_rate_updated_at"],
-                "language": row["language"]
+                "language": row["language"],
+                "last_item_name": row["last_item_name"] if "last_item_name" in row.keys() else None,
+                "last_unit_cost": row["last_unit_cost"] if "last_unit_cost" in row.keys() else None,
+                "last_unit_sell": row["last_unit_sell"] if "last_unit_sell" in row.keys() else None
             }
             settings = Settings(**settings_data)
         else:
@@ -214,7 +229,10 @@ def save_settings(settings: Settings) -> Settings:
                 theme_mode = ?,
                 my_currency = ?,
                 my_currency_symbol = ?,
-                language = ?
+                language = ?,
+                last_item_name = ?,
+                last_unit_cost = ?,
+                last_unit_sell = ?
             WHERE id = 1
             """,
             (
@@ -227,7 +245,10 @@ def save_settings(settings: Settings) -> Settings:
                 settings.theme_mode,
                 settings.my_currency,
                 settings.my_currency_symbol,
-                settings.language
+                settings.language,
+                settings.last_item_name,
+                settings.last_unit_cost,
+                settings.last_unit_sell
             )
         )
 

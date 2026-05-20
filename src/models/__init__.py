@@ -61,6 +61,9 @@ class Settings(BaseModel):
     my_currency_symbol: str = "¥"
     exchange_rate_updated_at: Optional[str] = None
     language: str = "zh"
+    last_item_name: Optional[str] = None
+    last_unit_cost: Optional[float] = None
+    last_unit_sell: Optional[float] = None
 
     @field_validator('exchange_rate', 'steam_fee_rate')
     @classmethod

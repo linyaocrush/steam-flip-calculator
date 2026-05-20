@@ -3,11 +3,12 @@ from utils import money, pct
 from config import CURRENCY_SYMBOLS
 
 
-def create_history_view(settings, snack, t):
+def create_history_view(settings, snack, t, page):
     dt = ft.DataTable(
         columns=[
             ft.DataColumn(ft.Text(t("time"), size=12)),
             ft.DataColumn(ft.Text(t("item"), size=12)),
+            ft.DataColumn(ft.Text(t("qty"), size=12)),
             ft.DataColumn(ft.Text(t("cost_unit"), size=12)),
             ft.DataColumn(ft.Text(t("sell_unit"), size=12)),
             ft.DataColumn(ft.Text(t("net_unit"), size=12)),
@@ -23,6 +24,17 @@ def create_history_view(settings, snack, t):
         expand=True,
         width=float("inf"),
     )
+
+    def delete_record(record_id, refresh_callback):
+        from services.database import delete_record as db_delete_record
+        success = db_delete_record(record_id)
+        if success:
+            snack.content = ft.Text(t("delete_success"))
+        else:
+            snack.content = ft.Text(t("delete_failed"))
+        snack.open = True
+        refresh_callback()
+        page.update()
 
     def row_for_record(record, refresh_callback):
         buy_symbol = CURRENCY_SYMBOLS.get(record.buy_currency, "¥")
@@ -41,13 +53,14 @@ def create_history_view(settings, snack, t):
                         ],
                     )
                 ),
+                ft.DataCell(ft.Text(str(record.qty), size=11)),
                 ft.DataCell(ft.Text(f"{buy_symbol} {money(record.unit_cost)}", size=11)),
                 ft.DataCell(ft.Text(f"{sell_symbol} {money(record.unit_steam_sell)}", size=11)),
                 ft.DataCell(ft.Text(f"{sell_symbol} {money(record.unit_net)}", size=11)),
                 ft.DataCell(ft.Text(f"{buy_symbol} {money(record.total_cost)}", size=11)),
                 ft.DataCell(ft.Text(f"{sell_symbol} {money(record.total_net)}", size=11)),
                 ft.DataCell(ft.Text(pct(record.ratio), size=11)),
-                ft.DataCell(ft.Text(pct(record.discount), size=11)),
+                ft.DataCell(ft.Text(f"{record.discount:,.2f}%", size=11)),
                 ft.DataCell(
                     ft.IconButton(
                         ft.Icons.DELETE_OUTLINE,
@@ -58,36 +71,6 @@ def create_history_view(settings, snack, t):
                 ),
             ],
         )
-
-    def delete_record(record_id, refresh_callback):
-        from src.services.database import delete_record as db_delete_record
-        
-        def yes(_):
-            success = db_delete_record(record_id)
-            if success:
-                snack.content = ft.Text(t("delete_success"))
-            else:
-                snack.content = ft.Text(t("delete_failed"))
-            snack.open = True
-            refresh_callback()
-            snack.page.update()
-
-        def no(_):
-            snack.page.dialog = None
-            snack.page.update()
-
-        snack.page.dialog = ft.AlertDialog(
-            modal=True,
-            title=ft.Text(t("confirm")),
-            content=ft.Text(t("confirm_clear_msg")),
-            actions=[
-                ft.TextButton(t("cancel"), on_click=no),
-                ft.FilledButton(t("confirm"), on_click=yes)
-            ],
-            actions_alignment=ft.MainAxisAlignment.END
-        )
-        snack.page.dialog.open = True
-        snack.page.update()
 
     return {
         "dt": dt,

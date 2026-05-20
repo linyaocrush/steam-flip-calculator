@@ -5,6 +5,7 @@ from utils.i18n import get_text
 from services.database import init_db, get_settings, get_records, get_stats, add_record, clear_records
 from state.app_state import app_state
 from services.exchange_rate import fetch_exchange_rate
+from models import HistoryRecord
 from views import (
     create_calculator_view,
     create_history_view,
@@ -86,9 +87,11 @@ def main(page: ft.Page):
                 "total_cost_in_my_currency": record_data.get("total_cost_in_my_currency", 0.0),
                 "total_net_in_my_currency": record_data.get("total_net_in_my_currency", 0.0),
                 "total_steam_sell_in_my_currency": record_data.get("total_steam_sell_in_my_currency", 0.0),
+                "ratio": record_data.get("ratio", 0.0),
             })
 
-        success = add_record(payload, settings)
+        record = HistoryRecord(**payload)
+        success = add_record(record, settings)
 
         if success:
             snack.content = ft.Text(t("save_success"))
@@ -105,7 +108,7 @@ def main(page: ft.Page):
     tf_cost = calculator["tf_cost"]
     tf_steam_sell = calculator["tf_steam_sell"]
 
-    history = create_history_view(settings, snack, t)
+    history = create_history_view(settings, snack, t, page)
     dt = history["dt"]
     row_for_record = history["row_for_record"]
 
@@ -133,32 +136,14 @@ def main(page: ft.Page):
         page.update()
 
     def clear_all(_):
-        def yes(_):
-            success = clear_records()
-            if success:
-                snack.content = ft.Text(t("clear_success"))
-            else:
-                snack.content = ft.Text(t("clear_failed"))
-            snack.open = True
-            refresh_history()
-            refresh_stats()
-            page.update()
-
-        def no(_):
-            page.dialog = None
-            page.update()
-
-        page.dialog = ft.AlertDialog(
-            modal=True,
-            title=ft.Text(t("confirm_clear")),
-            content=ft.Text(t("confirm_clear_msg")),
-            actions=[
-                ft.TextButton(t("cancel"), on_click=no),
-                ft.FilledButton(t("confirm"), on_click=yes)
-            ],
-            actions_alignment=ft.MainAxisAlignment.END
-        )
-        page.dialog.open = True
+        success = clear_records()
+        if success:
+            snack.content = ft.Text(t("clear_success"))
+        else:
+            snack.content = ft.Text(t("clear_failed"))
+        snack.open = True
+        refresh_history()
+        refresh_stats()
         page.update()
 
     is_dark = page.theme_mode == ft.ThemeMode.DARK

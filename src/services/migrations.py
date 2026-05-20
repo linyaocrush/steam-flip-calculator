@@ -226,6 +226,27 @@ def get_migration_manager() -> MigrationManager:
         check_old_structure=check_old_table_structure
     ))
 
+    def check_settings_without_last_fields() -> bool:
+        """检测 settings 表是否没有 last_item_name 等字段"""
+        try:
+            with sqlite3.connect(DB_PATH) as conn:
+                cursor = conn.execute("PRAGMA table_info(settings)")
+                columns = [row[1] for row in cursor.fetchall()]
+                return 'last_item_name' not in columns
+        except:
+            return False
+
+    manager.register(Migration(
+        version=2,
+        name="Add last input fields to settings table",
+        up_sql="""
+        ALTER TABLE settings ADD COLUMN last_item_name TEXT;
+        ALTER TABLE settings ADD COLUMN last_unit_cost REAL;
+        ALTER TABLE settings ADD COLUMN last_unit_sell REAL;
+        """,
+        check_old_structure=check_settings_without_last_fields
+    ))
+
     return manager
 
 

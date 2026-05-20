@@ -51,6 +51,7 @@ TRANSLATIONS = {
         
         "time": "时间",
         "item": "物品",
+        "qty": "数量",
         "cost_unit": "成本(单)",
         "sell_unit": "售出(单)",
         "net_unit": "到账(单)",
@@ -157,6 +158,7 @@ TRANSLATIONS = {
         
         "time": "Time",
         "item": "Item",
+        "qty": "Quantity",
         "cost_unit": "Cost(Unit)",
         "sell_unit": "Sell(Unit)",
         "net_unit": "Net(Unit)",
@@ -257,6 +259,7 @@ TRANSLATIONS = {
         
         "time": "時間",
         "item": "アイテム",
+        "qty": "数量",
         "cost_unit": "コスト(単)",
         "sell_unit": "販売(単)",
         "net_unit": "受取(単)",

@@ -10,7 +10,7 @@ def create_calculator_view(settings, on_add_to_history, t):
     
     tf_item = ft.TextField(
         label=t("item_name"), 
-        value="CS2 刀/皮肤", 
+        value=settings.last_item_name or "CS2 刀/皮肤", 
         expand=True,
         filled=True,
         bgcolor=ft.Colors.with_opacity(0.1, ft.Colors.SURFACE),
@@ -32,7 +32,7 @@ def create_calculator_view(settings, on_add_to_history, t):
 
     tf_cost = ft.TextField(
         label=t("cost"),
-        value="70",
+        value=str(settings.last_unit_cost) if settings.last_unit_cost else "70",
         prefix=ft.Text(settings.buy_currency_symbol),
         keyboard_type=ft.KeyboardType.NUMBER,
         expand=True,
@@ -45,7 +45,7 @@ def create_calculator_view(settings, on_add_to_history, t):
     )
     tf_steam_sell = ft.TextField(
         label=t("steam_sell"),
-        value="100",
+        value=str(settings.last_unit_sell) if settings.last_unit_sell else "100",
         prefix=ft.Text(settings.sell_currency_symbol),
         keyboard_type=ft.KeyboardType.NUMBER,
         expand=True,
@@ -229,6 +229,12 @@ def create_calculator_view(settings, on_add_to_history, t):
             "total_steam_sell_in_my_currency": data.total_cost + data.total_net,
             "ratio": data.ratio,
         }
+
+        current_settings.last_item_name = item_name
+        current_settings.last_unit_cost = unit_cost
+        current_settings.last_unit_sell = unit_sell
+        from services.database import save_settings
+        save_settings(current_settings)
 
         on_add_to_history(tf_item, tf_note, tf_cost, tf_steam_sell, tf_qty, record_data)
 
