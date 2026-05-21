@@ -92,6 +92,7 @@ class StatsData(BaseModel):
 class CalculationResult(BaseModel):
     unit_net: float
     total_cost: float
+    total_cost_buy: float = 0.0
     total_net: float
     ratio: float
     discount: float
@@ -99,3 +100,6 @@ class CalculationResult(BaseModel):
     required_qty: Optional[int] = None
     required_cost: Optional[float] = None
     break_even_price: Optional[float] = None
+    total_cost_in_my_currency: float = 0.0
+    total_net_in_my_currency: float = 0.0
+    total_steam_sell_in_my_currency: float = 0.0

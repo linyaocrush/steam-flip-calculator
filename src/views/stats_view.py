@@ -70,7 +70,7 @@ def create_stats_view(settings, t):
             st_total_sell.value = f"{my_currency_symbol} {money(stats.total_sell)}"
             st_total_qty.value = f"{stats.total_qty}"
             st_ratio.value = pct(stats.avg_ratio) if stats.total_net > 0 else "-"
-            st_discount.value = pct(stats.avg_discount) if stats.total_net > 0 else "-"
+            st_discount.value = f"{stats.avg_discount:,.2f}%" if stats.total_net > 0 else "-"
         else:
             st_total_cost.value = "-"
             st_total_net.value = "-"

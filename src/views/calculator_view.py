@@ -221,12 +221,12 @@ def create_calculator_view(settings, on_add_to_history, t):
             "qty": qty,
             "discount": data.discount,
             "unit_net": data.unit_net,
-            "total_cost": data.total_cost,
+            "total_cost": data.total_cost_buy,
             "total_net": data.total_net,
             "total_steam_sell": data.total_cost + data.total_net,
-            "total_cost_in_my_currency": data.total_cost,
-            "total_net_in_my_currency": data.total_net,
-            "total_steam_sell_in_my_currency": data.total_cost + data.total_net,
+            "total_cost_in_my_currency": data.total_cost_in_my_currency,
+            "total_net_in_my_currency": data.total_net_in_my_currency,
+            "total_steam_sell_in_my_currency": data.total_steam_sell_in_my_currency,
             "ratio": data.ratio,
         }
 

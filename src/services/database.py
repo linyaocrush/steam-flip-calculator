@@ -407,25 +407,17 @@ def get_stats() -> StatsData:
                     pass
         
         if rows and rows[0]["count"] > 0:
+            avg_ratio = (total_cost_in_my / total_net_in_my) if total_net_in_my > 0 else 0.0
+            avg_discount = ((1 - avg_ratio) * 100) if avg_ratio > 0 else 0.0
+            
             stats_data = {
                 "total_cost": total_cost_in_my,
                 "total_net": total_net_in_my,
                 "total_sell": total_sell_in_my,
                 "total_qty": rows[0]["total_qty"] or 0,
-                "avg_ratio": (total_net_in_my / total_cost_in_my) if total_cost_in_my > 0 else 0.0,
-                "avg_discount": 0.0
+                "avg_ratio": avg_ratio,
+                "avg_discount": avg_discount
             }
-            
-            cur.execute(
-                """
-                SELECT AVG(discount) as avg_discount
-                FROM history
-                WHERE discount IS NOT NULL
-                """
-            )
-            discount_row = cur.fetchone()
-            if discount_row and discount_row["avg_discount"]:
-                stats_data["avg_discount"] = discount_row["avg_discount"]
         else:
             stats_data = {
                 "total_cost": 0.0,

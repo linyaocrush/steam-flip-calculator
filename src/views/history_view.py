@@ -3,7 +3,7 @@ from utils import money, pct
 from config import CURRENCY_SYMBOLS
 
 
-def create_history_view(settings, snack, t, page):
+def create_history_view(settings, snack, t, page, refresh_stats_callback=None):
     dt = ft.DataTable(
         columns=[
             ft.DataColumn(ft.Text(t("time"), size=12)),
@@ -34,6 +34,8 @@ def create_history_view(settings, snack, t, page):
             snack.content = ft.Text(t("delete_failed"))
         snack.open = True
         refresh_callback()
+        if refresh_stats_callback:
+            refresh_stats_callback()
         page.update()
 
     def row_for_record(record, refresh_callback):

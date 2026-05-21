@@ -108,15 +108,6 @@ def main(page: ft.Page):
     tf_cost = calculator["tf_cost"]
     tf_steam_sell = calculator["tf_steam_sell"]
 
-    history = create_history_view(settings, snack, t, page)
-    dt = history["dt"]
-    row_for_record = history["row_for_record"]
-
-    def refresh_history():
-        records = get_records()
-        dt.rows = [row_for_record(r, refresh_history) for r in records]
-        page.update()
-
     stats = create_stats_view(settings, t)
     stats_view = stats["view"]
     update_stats = stats["update_stats"]
@@ -124,6 +115,15 @@ def main(page: ft.Page):
     def refresh_stats():
         stats_data = get_stats()
         update_stats(stats_data)
+        page.update()
+
+    history = create_history_view(settings, snack, t, page, refresh_stats)
+    dt = history["dt"]
+    row_for_record = history["row_for_record"]
+
+    def refresh_history():
+        records = get_records()
+        dt.rows = [row_for_record(r, refresh_history) for r in records]
         page.update()
 
     def refresh_history_and_stats():
