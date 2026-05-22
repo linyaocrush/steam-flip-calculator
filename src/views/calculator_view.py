@@ -1,8 +1,36 @@
 import flet as ft
+from decimal import Decimal, ROUND_HALF_UP
 from utils import money, pct, safe_float, safe_int
 from services.calculator import calculate_local
+from services.exchange_rate import fetch_exchange_rate
 from ui.glassmorphism import create_glass_card, get_glassmorphism_style
 from state.app_state import app_state
+
+
+def _get_my_currency_amounts(total_cost_buy: float, total_net: float, total_steam_sell: float,
+                              buy_currency: str, sell_currency: str, my_currency: str,
+                              exchange_rate: float):
+    """Convert amounts to 'my currency'. Returns (cost_in_my, net_in_my, sell_in_my).
+
+    Pure math — no I/O. For cases where my_currency differs from both buy and sell,
+    returns unconverted sell-currency values (caller should pre-convert if needed).
+    """
+    if not my_currency or buy_currency == sell_currency:
+        return total_cost_buy, total_net, total_steam_sell
+
+    if my_currency == buy_currency:
+        rate = Decimal(str(exchange_rate))
+        net_in_my = float((Decimal(str(total_net)) / rate).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
+        sell_in_my = float((Decimal(str(total_steam_sell)) / rate).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
+        return total_cost_buy, net_in_my, sell_in_my
+
+    if my_currency == sell_currency:
+        rate = Decimal(str(exchange_rate))
+        cost_in_my = float((Decimal(str(total_cost_buy)) * rate).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
+        return cost_in_my, total_net, total_steam_sell
+
+    # my_currency differs from both — can't convert without extra rates
+    return total_cost_buy, total_net, total_steam_sell
 
 
 def create_calculator_view(settings, on_add_to_history, t):
@@ -145,9 +173,6 @@ def create_calculator_view(settings, on_add_to_history, t):
             use_exchange,
             current_settings.exchange_rate,
             current_settings.steam_fee_rate,
-            current_settings.buy_currency,
-            current_settings.sell_currency,
-            current_settings.my_currency,
         )
 
         out_unit_net.value = format_price(data.unit_net, current_settings.sell_currency_symbol, current_settings.sell_currency)
@@ -190,7 +215,7 @@ def create_calculator_view(settings, on_add_to_history, t):
         item_name = (tf_item.value or "").strip()
         if not item_name:
             return
-        
+
         unit_cost = safe_float(tf_cost.value)
         unit_sell = safe_float(tf_steam_sell.value)
         qty = safe_int(tf_qty.value)
@@ -208,9 +233,12 @@ def create_calculator_view(settings, on_add_to_history, t):
             use_exchange,
             current_settings.exchange_rate,
             current_settings.steam_fee_rate,
-            current_settings.buy_currency,
-            current_settings.sell_currency,
-            current_settings.my_currency,
+        )
+
+        cost_in_my, net_in_my, sell_in_my = _get_my_currency_amounts(
+            data.total_cost_buy, data.total_net, data.total_cost + data.total_net,
+            current_settings.buy_currency, current_settings.sell_currency,
+            current_settings.my_currency, current_settings.exchange_rate,
         )
 
         record_data = {
@@ -224,9 +252,9 @@ def create_calculator_view(settings, on_add_to_history, t):
             "total_cost": data.total_cost_buy,
             "total_net": data.total_net,
             "total_steam_sell": data.total_cost + data.total_net,
-            "total_cost_in_my_currency": data.total_cost_in_my_currency,
-            "total_net_in_my_currency": data.total_net_in_my_currency,
-            "total_steam_sell_in_my_currency": data.total_steam_sell_in_my_currency,
+            "total_cost_in_my_currency": cost_in_my,
+            "total_net_in_my_currency": net_in_my,
+            "total_steam_sell_in_my_currency": sell_in_my,
             "ratio": data.ratio,
         }
 

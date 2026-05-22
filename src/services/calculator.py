@@ -1,10 +1,9 @@
 from decimal import Decimal, ROUND_HALF_UP, getcontext
 from models import CalculationResult
-from services.exchange_rate import fetch_exchange_rate
 
 getcontext().prec = 28
 
-def calculate_local(unit_cost, unit_sell, qty, use_exchange, exchange_rate, fee_rate, buy_currency=None, sell_currency=None, my_currency=None):
+def calculate_local(unit_cost, unit_sell, qty, use_exchange, exchange_rate, fee_rate):
     unit_cost = Decimal(str(unit_cost))
     unit_sell = Decimal(str(unit_sell))
     qty = Decimal(str(qty))
@@ -42,27 +41,6 @@ def calculate_local(unit_cost, unit_sell, qty, use_exchange, exchange_rate, fee_
         else:
             need_sell = Decimal('0')
     
-    total_cost_in_my = total_cost_buy
-    total_net_in_my = total_net
-    total_steam_sell_in_my = total_steam_sell
-    
-    if my_currency and use_exchange:
-        if my_currency == buy_currency:
-            total_net_in_my = (total_net / exchange_rate).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-            total_steam_sell_in_my = (total_steam_sell / exchange_rate).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-        elif my_currency == sell_currency:
-            total_cost_in_my = (total_cost_buy * exchange_rate).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-        else:
-            buy_to_my_rate, _, _ = fetch_exchange_rate(buy_currency, my_currency)
-            sell_to_my_rate, _, _ = fetch_exchange_rate(sell_currency, my_currency)
-            
-            buy_to_my_rate = Decimal(str(buy_to_my_rate))
-            sell_to_my_rate = Decimal(str(sell_to_my_rate))
-            
-            total_cost_in_my = (total_cost_buy * buy_to_my_rate).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-            total_net_in_my = (total_net * sell_to_my_rate).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-            total_steam_sell_in_my = (total_steam_sell * sell_to_my_rate).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-
     return CalculationResult(
         unit_net=float(unit_net),
         total_cost=float(total_cost),
@@ -71,9 +49,6 @@ def calculate_local(unit_cost, unit_sell, qty, use_exchange, exchange_rate, fee_
         ratio=float(ratio),
         discount=float(discount),
         need_sell=float(need_sell),
-        total_cost_in_my_currency=float(total_cost_in_my),
-        total_net_in_my_currency=float(total_net_in_my),
-        total_steam_sell_in_my_currency=float(total_steam_sell_in_my)
     )
 
 
