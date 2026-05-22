@@ -1,8 +1,6 @@
 import flet as ft
 from utils import safe_float
 from config import CURRENCY_CODES, CURRENCY_SYMBOLS
-from services.exchange_rate import fetch_exchange_rate
-from services.database import save_settings
 from utils.i18n import LANGUAGE_CODES, LANGUAGE_LABELS
 from ui.glassmorphism import get_glassmorphism_style
 

@@ -62,7 +62,7 @@ def fetch_exchange_rate(base: str, target: str, force_refresh: bool = False) -> 
         data = response.json()
         
         if target not in data.get("rates", {}):
-            return cached_rate or 1.0, cached_time, "获取失败，使用缓存"
+            return None, None, "目标货币不在返回结果中"
         
         rate_decimal = Decimal(str(data["rates"][target]))
         rate = float(rate_decimal.quantize(Decimal('0.0001'), rounding=ROUND_HALF_UP))
@@ -83,4 +83,4 @@ def fetch_exchange_rate(base: str, target: str, force_refresh: bool = False) -> 
         
         return rate, updated_at, "获取成功"
     except Exception as e:
-        return cached_rate or 1.0, cached_time, f"获取失败: {str(e)}"
+        return None, None, f"获取失败: {str(e)}"

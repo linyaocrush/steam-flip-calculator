@@ -2,7 +2,6 @@ import flet as ft
 from decimal import Decimal, ROUND_HALF_UP
 from utils import money_decimal, pct_decimal, safe_float, safe_decimal, safe_int, Debouncer
 from services.calculator import calculate_local
-from services.exchange_rate import fetch_exchange_rate
 from ui.glassmorphism import create_glass_card, get_glassmorphism_style
 from state.app_state import app_state
 
