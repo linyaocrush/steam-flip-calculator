@@ -1,4 +1,26 @@
 from decimal import Decimal, ROUND_HALF_UP
+import threading
+import time
+
+
+class Debouncer:
+    """Debounce calls to a function — the last call within `delay_ms` wins."""
+
+    def __init__(self, delay_ms=200):
+        self.delay = delay_ms / 1000.0
+        self._timer = None
+
+    def __call__(self, fn):
+        if self._timer and self._timer.is_alive():
+            self._timer.cancel()
+        self._timer = threading.Timer(self.delay, fn)
+        self._timer.daemon = True
+        self._timer.start()
+
+    def cancel(self):
+        if self._timer and self._timer.is_alive():
+            self._timer.cancel()
+            self._timer = None
 
 
 def money(x: float) -> str:

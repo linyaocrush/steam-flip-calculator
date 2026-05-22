@@ -1,6 +1,6 @@
 import flet as ft
 from decimal import Decimal, ROUND_HALF_UP
-from utils import money, pct, safe_float, safe_int
+from utils import money, pct, safe_float, safe_int, Debouncer
 from services.calculator import calculate_local
 from services.exchange_rate import fetch_exchange_rate
 from ui.glassmorphism import create_glass_card, get_glassmorphism_style
@@ -33,9 +33,19 @@ def _get_my_currency_amounts(total_cost_buy: float, total_net: float, total_stea
     return total_cost_buy, total_net, total_steam_sell
 
 
-def create_calculator_view(settings, on_add_to_history, t):
+def create_calculator_view(settings, on_add_to_history, t, page):
     is_dark = True
-    
+
+    _recalc_debouncer = Debouncer(200)
+
+    def _debounced_recalc():
+        recalc()
+        page.update()
+
+    def _debounced_calc_target():
+        calc_target_qty()
+        page.update()
+
     tf_item = ft.TextField(
         label=t("item_name"), 
         value=settings.last_item_name or "CS2 刀/皮肤", 
@@ -266,10 +276,10 @@ def create_calculator_view(settings, on_add_to_history, t):
 
         on_add_to_history(tf_item, tf_note, tf_cost, tf_steam_sell, tf_qty, record_data)
 
-    tf_cost.on_change = recalc
-    tf_steam_sell.on_change = recalc
-    tf_qty.on_change = recalc
-    tf_target_amount.on_change = calc_target_qty
+    tf_cost.on_change = lambda _: _recalc_debouncer(_debounced_recalc)
+    tf_steam_sell.on_change = lambda _: _recalc_debouncer(_debounced_recalc)
+    tf_qty.on_change = lambda _: _recalc_debouncer(_debounced_recalc)
+    tf_target_amount.on_change = lambda _: _recalc_debouncer(_debounced_calc_target)
 
     def on_settings_changed(new_settings):
         tf_cost.prefix = ft.Text(new_settings.buy_currency_symbol)

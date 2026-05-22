@@ -92,7 +92,7 @@ def main(page: ft.Page):
         snack.open = True
         refresh_history_and_stats()
 
-    calculator = create_calculator_view(settings, on_add_to_history, t)
+    calculator = create_calculator_view(settings, on_add_to_history, t, page)
     calc_card = calculator["view"]
     recalc = calculator["recalc"]
     tf_cost = calculator["tf_cost"]
