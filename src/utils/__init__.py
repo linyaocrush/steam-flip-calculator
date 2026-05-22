@@ -13,6 +13,11 @@ def pct(x: float) -> str:
     return f"{x * 100:,.2f}%"
 
 
+def pct_raw(x: float) -> str:
+    """Format an already-percentage value (e.g. 17.65 -> '17.65%')."""
+    return f"{x:,.2f}%"
+
+
 def pct_decimal(x: Decimal) -> str:
     return f"{float(x * Decimal('100')):,.2f}%"
 

@@ -1,13 +1,35 @@
+import time
 import requests
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
 from services.database import get_db, invalidate_settings_cache
 
+_exchange_rate_cache = {}
+_CACHE_TTL = 300  # 5 minutes in-memory cache
+
+
+def _get_cached_rate(base: str, target: str):
+    key = (base, target)
+    entry = _exchange_rate_cache.get(key)
+    if entry and time.time() - entry["timestamp"] < _CACHE_TTL:
+        return entry["rate"], entry["updated_at"]
+    return None
+
+
+def _set_cached_rate(base: str, target: str, rate: float, updated_at: str):
+    key = (base, target)
+    _exchange_rate_cache[key] = {"rate": rate, "updated_at": updated_at, "timestamp": time.time()}
+
 
 def fetch_exchange_rate(base: str, target: str, force_refresh: bool = False) -> tuple:
     if base == target:
         return 1.0, None, "相同货币"
-    
+
+    if not force_refresh:
+        cached = _get_cached_rate(base, target)
+        if cached:
+            return cached[0], cached[1], "使用内存缓存"
+
     with get_db() as conn:
         cur = conn.cursor()
         cur.execute(
@@ -15,20 +37,21 @@ def fetch_exchange_rate(base: str, target: str, force_refresh: bool = False) -> 
             (base, target)
         )
         row = cur.fetchone()
-        
+
         cached_rate = None
         cached_time = None
         if row:
             cached_rate = float(row["rate"])
             cached_time = row["updated_at"]
-        
+
         if not force_refresh and cached_rate is not None and cached_time is not None:
             try:
                 cached_datetime = datetime.strptime(cached_time, "%Y-%m-%d %H:%M:%S")
                 now = datetime.now()
                 diff_hours = (now - cached_datetime).total_seconds() / 3600
                 if diff_hours < 12:
-                    return cached_rate, cached_time, "使用缓存"
+                    _set_cached_rate(base, target, cached_rate, cached_time)
+                    return cached_rate, cached_time, "使用DB缓存"
             except Exception:
                 pass
     
@@ -44,7 +67,8 @@ def fetch_exchange_rate(base: str, target: str, force_refresh: bool = False) -> 
         rate_decimal = Decimal(str(data["rates"][target]))
         rate = float(rate_decimal.quantize(Decimal('0.0001'), rounding=ROUND_HALF_UP))
         updated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
+        _set_cached_rate(base, target, rate, updated_at)
+
         with get_db() as conn:
             cur = conn.cursor()
             cur.execute(

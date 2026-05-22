@@ -98,9 +98,7 @@ def main(page: ft.Page):
         else:
             snack.content = ft.Text(t("save_failed"))
         snack.open = True
-        refresh_history()
-        refresh_stats()
-        page.update()
+        refresh_history_and_stats()
 
     calculator = create_calculator_view(settings, on_add_to_history, t)
     calc_card = calculator["view"]
@@ -117,20 +115,20 @@ def main(page: ft.Page):
         update_stats(stats_data)
         page.update()
 
-    history = create_history_view(settings, snack, t, page, refresh_stats)
+    history = create_history_view(settings, snack, t, page)
     dt = history["dt"]
     row_for_record = history["row_for_record"]
 
     def refresh_history():
         records = get_records()
-        dt.rows = [row_for_record(r, refresh_history) for r in records]
+        dt.rows = [row_for_record(r, refresh_history_and_stats) for r in records]
         page.update()
 
     def refresh_history_and_stats():
         records = get_records()
         stats_data = get_stats()
 
-        dt.rows = [row_for_record(r, refresh_history) for r in records]
+        dt.rows = [row_for_record(r, refresh_history_and_stats) for r in records]
         update_stats(stats_data)
 
         page.update()
@@ -142,12 +140,10 @@ def main(page: ft.Page):
         else:
             snack.content = ft.Text(t("clear_failed"))
         snack.open = True
-        refresh_history()
-        refresh_stats()
-        page.update()
+        refresh_history_and_stats()
 
     is_dark = page.theme_mode == ft.ThemeMode.DARK
-    
+
     history_view = ft.Column(
         expand=True,
         spacing=14,
@@ -426,8 +422,7 @@ def main(page: ft.Page):
     history_view.visible = False
     stats_view.visible = False
     settings_view.visible = False
-    refresh_history()
-    refresh_stats()
+    refresh_history_and_stats()
     recalc()
     page.update()
 

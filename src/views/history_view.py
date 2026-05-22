@@ -1,9 +1,9 @@
 import flet as ft
-from utils import money, pct
+from utils import money, pct, pct_raw
 from config import CURRENCY_SYMBOLS
 
 
-def create_history_view(settings, snack, t, page, refresh_stats_callback=None):
+def create_history_view(settings, snack, t, page):
     dt = ft.DataTable(
         columns=[
             ft.DataColumn(ft.Text(t("time"), size=12)),
@@ -34,8 +34,6 @@ def create_history_view(settings, snack, t, page, refresh_stats_callback=None):
             snack.content = ft.Text(t("delete_failed"))
         snack.open = True
         refresh_callback()
-        if refresh_stats_callback:
-            refresh_stats_callback()
         page.update()
 
     def row_for_record(record, refresh_callback):
@@ -62,7 +60,7 @@ def create_history_view(settings, snack, t, page, refresh_stats_callback=None):
                 ft.DataCell(ft.Text(f"{buy_symbol} {money(record.total_cost)}", size=11)),
                 ft.DataCell(ft.Text(f"{sell_symbol} {money(record.total_net)}", size=11)),
                 ft.DataCell(ft.Text(pct(record.ratio), size=11)),
-                ft.DataCell(ft.Text(f"{record.discount:,.2f}%", size=11)),
+                ft.DataCell(ft.Text(pct_raw(record.discount), size=11)),
                 ft.DataCell(
                     ft.IconButton(
                         ft.Icons.DELETE_OUTLINE,
