@@ -1,5 +1,5 @@
 import flet as ft
-from utils import money, pct, pct_raw
+from utils import money_decimal, pct_decimal, pct_raw
 from ui.glassmorphism import get_glassmorphism_style
 from state.app_state import app_state
 
@@ -65,11 +65,11 @@ def create_stats_view(settings, t):
         if stats:
             current_settings = app_state.get_settings()
             my_currency_symbol = current_settings.my_currency_symbol
-            st_total_cost.value = f"{my_currency_symbol} {money(stats.total_cost)}"
-            st_total_net.value = f"{my_currency_symbol} {money(stats.total_net)}"
-            st_total_sell.value = f"{my_currency_symbol} {money(stats.total_sell)}"
+            st_total_cost.value = f"{my_currency_symbol} {money_decimal(stats.total_cost)}"
+            st_total_net.value = f"{my_currency_symbol} {money_decimal(stats.total_net)}"
+            st_total_sell.value = f"{my_currency_symbol} {money_decimal(stats.total_sell)}"
             st_total_qty.value = f"{stats.total_qty}"
-            st_ratio.value = pct(stats.avg_ratio) if stats.total_net > 0 else "-"
+            st_ratio.value = pct_decimal(stats.avg_ratio) if stats.total_net > 0 else "-"
             st_discount.value = pct_raw(stats.avg_discount) if stats.total_net > 0 else "-"
         else:
             st_total_cost.value = "-"

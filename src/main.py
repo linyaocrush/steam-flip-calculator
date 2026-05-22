@@ -1,5 +1,6 @@
 import flet as ft
-from utils import safe_float, safe_int
+from decimal import Decimal
+from utils import safe_float, safe_decimal, safe_int
 from utils.i18n import get_text
 from services.database import init_db, get_settings, get_records, get_stats, add_record, clear_records
 from models import HistoryRecord
@@ -50,8 +51,8 @@ def main(page: ft.Page):
             page.update()
             return
 
-        unit_cost = safe_float(tf_cost.value)
-        unit_sell = safe_float(tf_steam_sell.value)
+        unit_cost = safe_decimal(tf_cost.value)
+        unit_sell = safe_decimal(tf_steam_sell.value)
         qty = safe_int(tf_qty.value)
         note = (tf_note.value or "").strip()
 
@@ -71,15 +72,15 @@ def main(page: ft.Page):
 
         if record_data:
             payload.update({
-                "discount": record_data.get("discount", 0.0),
-                "unit_net": record_data.get("unit_net", 0.0),
-                "total_cost": record_data.get("total_cost", 0.0),
-                "total_net": record_data.get("total_net", 0.0),
-                "total_steam_sell": record_data.get("total_steam_sell", 0.0),
-                "total_cost_in_my_currency": record_data.get("total_cost_in_my_currency", 0.0),
-                "total_net_in_my_currency": record_data.get("total_net_in_my_currency", 0.0),
-                "total_steam_sell_in_my_currency": record_data.get("total_steam_sell_in_my_currency", 0.0),
-                "ratio": record_data.get("ratio", 0.0),
+                "discount": record_data.get("discount", Decimal('0')),
+                "unit_net": record_data.get("unit_net", Decimal('0')),
+                "total_cost": record_data.get("total_cost", Decimal('0')),
+                "total_net": record_data.get("total_net", Decimal('0')),
+                "total_steam_sell": record_data.get("total_steam_sell", Decimal('0')),
+                "total_cost_in_my_currency": record_data.get("total_cost_in_my_currency", Decimal('0')),
+                "total_net_in_my_currency": record_data.get("total_net_in_my_currency", Decimal('0')),
+                "total_steam_sell_in_my_currency": record_data.get("total_steam_sell_in_my_currency", Decimal('0')),
+                "ratio": record_data.get("ratio", Decimal('0')),
             })
 
         record = HistoryRecord(**payload)

@@ -1,5 +1,6 @@
 import flet as ft
-from utils import money, pct, pct_raw
+from decimal import Decimal
+from utils import money_decimal, pct_decimal, pct_raw
 from config import CURRENCY_SYMBOLS
 
 
@@ -39,7 +40,7 @@ def create_history_view(settings, snack, t, page):
     def row_for_record(record, refresh_callback):
         buy_symbol = CURRENCY_SYMBOLS.get(record.buy_currency, "¥")
         sell_symbol = CURRENCY_SYMBOLS.get(record.sell_currency, "¥")
-        
+
         return ft.DataRow(
             cells=[
                 ft.DataCell(ft.Text(record.ts, size=11)),
@@ -54,12 +55,12 @@ def create_history_view(settings, snack, t, page):
                     )
                 ),
                 ft.DataCell(ft.Text(str(record.qty), size=11)),
-                ft.DataCell(ft.Text(f"{buy_symbol} {money(record.unit_cost)}", size=11)),
-                ft.DataCell(ft.Text(f"{sell_symbol} {money(record.unit_steam_sell)}", size=11)),
-                ft.DataCell(ft.Text(f"{sell_symbol} {money(record.unit_net)}", size=11)),
-                ft.DataCell(ft.Text(f"{buy_symbol} {money(record.total_cost)}", size=11)),
-                ft.DataCell(ft.Text(f"{sell_symbol} {money(record.total_net)}", size=11)),
-                ft.DataCell(ft.Text(pct(record.ratio), size=11)),
+                ft.DataCell(ft.Text(f"{buy_symbol} {money_decimal(record.unit_cost)}", size=11)),
+                ft.DataCell(ft.Text(f"{sell_symbol} {money_decimal(record.unit_steam_sell)}", size=11)),
+                ft.DataCell(ft.Text(f"{sell_symbol} {money_decimal(record.unit_net)}", size=11)),
+                ft.DataCell(ft.Text(f"{buy_symbol} {money_decimal(record.total_cost)}", size=11)),
+                ft.DataCell(ft.Text(f"{sell_symbol} {money_decimal(record.total_net)}", size=11)),
+                ft.DataCell(ft.Text(pct_decimal(record.ratio), size=11)),
                 ft.DataCell(ft.Text(pct_raw(record.discount), size=11)),
                 ft.DataCell(
                     ft.IconButton(

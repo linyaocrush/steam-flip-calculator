@@ -44,15 +44,15 @@ def init_db():
             ts TEXT NOT NULL,
             item_name TEXT NOT NULL,
             note TEXT,
-            unit_cost REAL NOT NULL,
-            unit_steam_sell REAL NOT NULL,
+            unit_cost TEXT NOT NULL,
+            unit_steam_sell TEXT NOT NULL,
             qty INTEGER NOT NULL,
-            unit_net REAL NOT NULL,
-            total_cost REAL NOT NULL,
-            total_steam_sell REAL NOT NULL,
-            total_net REAL NOT NULL,
-            discount REAL NOT NULL DEFAULT 0,
-            ratio REAL NOT NULL DEFAULT 0,
+            unit_net TEXT NOT NULL,
+            total_cost TEXT NOT NULL,
+            total_steam_sell TEXT NOT NULL,
+            total_net TEXT NOT NULL,
+            discount TEXT NOT NULL DEFAULT 0,
+            ratio TEXT NOT NULL DEFAULT 0,
             settings_snapshot TEXT,
             calculation_snapshot TEXT,
             created_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -259,6 +259,7 @@ def save_settings(settings: Settings) -> Settings:
 
 
 def get_records(limit: int = 500) -> List[HistoryRecord]:
+    from decimal import Decimal
     import json
     with get_db() as conn:
         cur = conn.cursor()
@@ -279,19 +280,22 @@ def get_records(limit: int = 500) -> List[HistoryRecord]:
     for row in rows:
         settings_data = json.loads(row["settings_snapshot"]) if row["settings_snapshot"] else {}
         calculation_data = json.loads(row["calculation_snapshot"]) if row["calculation_snapshot"] else {}
-        
+
+        def to_decimal(v):
+            return Decimal(str(v))
+
         record_data = {
             "id": row["id"],
             "ts": row["ts"],
             "item_name": row["item_name"],
             "note": row["note"] if row["note"] else None,
-            "unit_cost": row["unit_cost"],
-            "unit_steam_sell": row["unit_steam_sell"],
+            "unit_cost": to_decimal(row["unit_cost"]),
+            "unit_steam_sell": to_decimal(row["unit_steam_sell"]),
             "qty": row["qty"],
-            "unit_net": row["unit_net"],
-            "total_cost": row["total_cost"],
-            "total_steam_sell": row["total_steam_sell"],
-            "total_net": row["total_net"],
+            "unit_net": to_decimal(row["unit_net"]),
+            "total_cost": to_decimal(row["total_cost"]),
+            "total_steam_sell": to_decimal(row["total_steam_sell"]),
+            "total_net": to_decimal(row["total_net"]),
             "sell_currency": settings_data.get("sell_currency", "CNY"),
             "sell_currency_symbol": "",
             "buy_currency": settings_data.get("buy_currency", "CNY"),
@@ -299,11 +303,11 @@ def get_records(limit: int = 500) -> List[HistoryRecord]:
             "exchange_rate": settings_data.get("exchange_rate", 1.0),
             "my_currency": settings_data.get("my_currency", "CNY"),
             "my_currency_symbol": "",
-            "total_cost_in_my_currency": calculation_data.get("total_cost_in_my_currency", 0.0),
-            "total_net_in_my_currency": calculation_data.get("total_net_in_my_currency", 0.0),
-            "total_steam_sell_in_my_currency": calculation_data.get("total_steam_sell_in_my_currency", 0.0),
-            "discount": row["discount"],
-            "ratio": row["ratio"] if "ratio" in row.keys() else 0.0
+            "total_cost_in_my_currency": to_decimal(calculation_data.get("total_cost_in_my_currency", 0)),
+            "total_net_in_my_currency": to_decimal(calculation_data.get("total_net_in_my_currency", 0)),
+            "total_steam_sell_in_my_currency": to_decimal(calculation_data.get("total_steam_sell_in_my_currency", 0)),
+            "discount": to_decimal(row["discount"]),
+            "ratio": to_decimal(row["ratio"]) if "ratio" in row.keys() else Decimal('0')
         }
         records.append(HistoryRecord(**record_data))
 
@@ -312,9 +316,11 @@ def get_records(limit: int = 500) -> List[HistoryRecord]:
 
 def add_record(record: HistoryRecord, settings: Settings) -> bool:
     import json
+    from decimal import Decimal
+
     with get_db() as conn:
         cur = conn.cursor()
-        
+
         ts = record.ts or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         settings_snapshot = json.dumps({
@@ -324,11 +330,11 @@ def add_record(record: HistoryRecord, settings: Settings) -> bool:
             "exchange_rate": settings.exchange_rate,
             "steam_fee_rate": settings.steam_fee_rate
         })
-        
+
         calculation_snapshot = json.dumps({
-            "total_cost_in_my_currency": record.total_cost_in_my_currency,
-            "total_net_in_my_currency": record.total_net_in_my_currency,
-            "total_steam_sell_in_my_currency": record.total_steam_sell_in_my_currency
+            "total_cost_in_my_currency": str(record.total_cost_in_my_currency),
+            "total_net_in_my_currency": str(record.total_net_in_my_currency),
+            "total_steam_sell_in_my_currency": str(record.total_steam_sell_in_my_currency)
         })
 
         cur.execute(
@@ -338,9 +344,9 @@ def add_record(record: HistoryRecord, settings: Settings) -> bool:
                                 discount, ratio, settings_snapshot, calculation_snapshot)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (ts, record.item_name, record.note, record.unit_cost, record.unit_steam_sell, record.qty,
-             record.unit_net, record.total_cost, record.total_steam_sell, record.total_net,
-             record.discount, record.ratio, settings_snapshot, calculation_snapshot),
+            (ts, record.item_name, record.note, str(record.unit_cost), str(record.unit_steam_sell), record.qty,
+             str(record.unit_net), str(record.total_cost), str(record.total_steam_sell), str(record.total_net),
+             str(record.discount), str(record.ratio), settings_snapshot, calculation_snapshot),
         )
 
     invalidate_stats_cache()
@@ -366,66 +372,65 @@ def clear_records() -> bool:
 
 
 def get_stats() -> StatsData:
+    from decimal import Decimal
     import json
     if _stats_cache.is_valid():
         return _stats_cache.get()
 
     with get_db() as conn:
         cur = conn.cursor()
-        
-        cur.execute("SELECT my_currency, my_currency_symbol FROM settings WHERE id = 1")
-        row = cur.fetchone()
-        my_currency = row["my_currency"] if row else "CNY"
-        my_currency_symbol = row["my_currency_symbol"] if row else "¥"
-        
+
         cur.execute(
             """
-            SELECT 
+            SELECT
                 COUNT(*) as count,
-                SUM(total_cost) as total_cost,
-                SUM(total_net) as total_net,
-                SUM(total_steam_sell) as total_sell,
-                SUM(qty) as total_qty,
                 calculation_snapshot
             FROM history
             """
         )
         rows = cur.fetchall()
-        
-        total_cost_in_my = 0.0
-        total_net_in_my = 0.0
-        total_sell_in_my = 0.0
-        
-        for row in rows:
-            if row["calculation_snapshot"]:
-                try:
-                    calc_data = json.loads(row["calculation_snapshot"])
-                    total_cost_in_my += calc_data.get("total_cost_in_my_currency", 0.0)
-                    total_net_in_my += calc_data.get("total_net_in_my_currency", 0.0)
-                    total_sell_in_my += calc_data.get("total_steam_sell_in_my_currency", 0.0)
-                except:
-                    pass
-        
+
+        total_cost_in_my = Decimal('0')
+        total_net_in_my = Decimal('0')
+        total_sell_in_my = Decimal('0')
+        total_qty = 0
+
         if rows and rows[0]["count"] > 0:
-            avg_ratio = (total_cost_in_my / total_net_in_my) if total_net_in_my > 0 else 0.0
-            avg_discount = ((1 - avg_ratio) * 100) if avg_ratio > 0 else 0.0
-            
+            cur.execute(
+                """
+                SELECT qty, calculation_snapshot FROM history
+                """
+            )
+            for detail_row in cur.fetchall():
+                total_qty += detail_row["qty"] or 0
+                if detail_row["calculation_snapshot"]:
+                    try:
+                        calc_data = json.loads(detail_row["calculation_snapshot"])
+                        total_cost_in_my += Decimal(str(calc_data.get("total_cost_in_my_currency", 0)))
+                        total_net_in_my += Decimal(str(calc_data.get("total_net_in_my_currency", 0)))
+                        total_sell_in_my += Decimal(str(calc_data.get("total_steam_sell_in_my_currency", 0)))
+                    except:
+                        pass
+
+        if total_net_in_my > 0:
+            avg_ratio = (total_cost_in_my / total_net_in_my).quantize(Decimal('0.0001'))
+            avg_discount = ((Decimal('1') - avg_ratio) * Decimal('100')).quantize(Decimal('0.01'))
             stats_data = {
                 "total_cost": total_cost_in_my,
                 "total_net": total_net_in_my,
                 "total_sell": total_sell_in_my,
-                "total_qty": rows[0]["total_qty"] or 0,
+                "total_qty": total_qty,
                 "avg_ratio": avg_ratio,
                 "avg_discount": avg_discount
             }
         else:
             stats_data = {
-                "total_cost": 0.0,
-                "total_net": 0.0,
-                "total_sell": 0.0,
+                "total_cost": Decimal('0'),
+                "total_net": Decimal('0'),
+                "total_sell": Decimal('0'),
                 "total_qty": 0,
-                "avg_ratio": 0.0,
-                "avg_discount": 0.0
+                "avg_ratio": Decimal('0'),
+                "avg_discount": Decimal('0')
             }
 
     stats = StatsData(**stats_data)

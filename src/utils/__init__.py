@@ -28,7 +28,7 @@ def money(x: float) -> str:
 
 
 def money_decimal(x: Decimal) -> str:
-    return f"{float(x):,.2f}"
+    return f"{x:,.2f}"
 
 
 def pct(x: float) -> str:
@@ -41,7 +41,7 @@ def pct_raw(x: float) -> str:
 
 
 def pct_decimal(x: Decimal) -> str:
-    return f"{float(x * Decimal('100')):,.2f}%"
+    return f"{x * Decimal('100'):,.2f}%"
 
 
 def safe_float(s: str) -> float:

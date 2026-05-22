@@ -1,3 +1,4 @@
+from decimal import Decimal
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 from datetime import datetime
@@ -14,13 +15,13 @@ class HistoryRecord(BaseModel):
     ts: str = Field(default_factory=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     item_name: str
     note: Optional[str] = None
-    unit_cost: float
-    unit_steam_sell: float
+    unit_cost: Decimal
+    unit_steam_sell: Decimal
     qty: int
-    unit_net: float
-    total_cost: float
-    total_steam_sell: float
-    total_net: float
+    unit_net: Decimal
+    total_cost: Decimal
+    total_steam_sell: Decimal
+    total_net: Decimal
     sell_currency: str = "CNY"
     sell_currency_symbol: str = "¥"
     buy_currency: str = "CNY"
@@ -28,11 +29,11 @@ class HistoryRecord(BaseModel):
     exchange_rate: float = 1.0
     my_currency: str = "CNY"
     my_currency_symbol: str = "¥"
-    total_cost_in_my_currency: float = 0.0
-    total_net_in_my_currency: float = 0.0
-    total_steam_sell_in_my_currency: float = 0.0
-    discount: float = 0.0
-    ratio: float = 0.0
+    total_cost_in_my_currency: Decimal = Decimal('0')
+    total_net_in_my_currency: Decimal = Decimal('0')
+    total_steam_sell_in_my_currency: Decimal = Decimal('0')
+    discount: Decimal = Decimal('0')
+    ratio: Decimal = Decimal('0')
 
     @field_validator('unit_cost', 'unit_steam_sell', 'unit_net', 'total_cost', 'total_steam_sell', 'total_net', 'exchange_rate', 'discount', 'ratio')
     @classmethod
@@ -81,22 +82,22 @@ class Settings(BaseModel):
 
 
 class StatsData(BaseModel):
-    total_cost: float = 0.0
-    total_net: float = 0.0
-    total_sell: float = 0.0
+    total_cost: Decimal = Decimal('0')
+    total_net: Decimal = Decimal('0')
+    total_sell: Decimal = Decimal('0')
     total_qty: int = 0
-    avg_ratio: float = 0.0
-    avg_discount: float = 0.0
+    avg_ratio: Decimal = Decimal('0')
+    avg_discount: Decimal = Decimal('0')
 
 
 class CalculationResult(BaseModel):
-    unit_net: float
-    total_cost: float
-    total_cost_buy: float = 0.0
-    total_net: float
-    ratio: float
-    discount: float
-    need_sell: float = 0.0
+    unit_net: Decimal
+    total_cost: Decimal
+    total_cost_buy: Decimal = Decimal('0')
+    total_net: Decimal
+    ratio: Decimal
+    discount: Decimal
+    need_sell: Decimal = Decimal('0')
     required_qty: Optional[int] = None
-    required_cost: Optional[float] = None
-    break_even_price: Optional[float] = None
+    required_cost: Optional[Decimal] = None
+    break_even_price: Optional[Decimal] = None

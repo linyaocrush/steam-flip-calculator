@@ -247,6 +247,62 @@ def get_migration_manager() -> MigrationManager:
         check_old_structure=check_settings_without_last_fields
     ))
 
+    def check_amount_columns_are_real() -> bool:
+        """检测 history 表的金额列是否为 REAL（旧结构）"""
+        try:
+            with sqlite3.connect(DB_PATH) as conn:
+                cursor = conn.execute("PRAGMA table_info(history)")
+                columns = {row[1]: row[2] for row in cursor.fetchall()}
+                return columns.get("unit_cost", "TEXT") == "REAL"
+        except:
+            return False
+
+    manager.register(Migration(
+        version=3,
+        name="Convert history amount columns from REAL to TEXT for Decimal precision",
+        up_sql="""
+        CREATE TABLE IF NOT EXISTS history_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ts TEXT NOT NULL,
+            item_name TEXT NOT NULL,
+            note TEXT,
+            unit_cost TEXT NOT NULL,
+            unit_steam_sell TEXT NOT NULL,
+            qty INTEGER NOT NULL,
+            unit_net TEXT NOT NULL,
+            total_cost TEXT NOT NULL,
+            total_steam_sell TEXT NOT NULL,
+            total_net TEXT NOT NULL,
+            discount TEXT NOT NULL DEFAULT 0,
+            ratio TEXT NOT NULL DEFAULT 0,
+            settings_snapshot TEXT,
+            calculation_snapshot TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        INSERT INTO history_new (
+            id, ts, item_name, note, unit_cost, unit_steam_sell, qty,
+            unit_net, total_cost, total_steam_sell, total_net, discount, ratio,
+            settings_snapshot, calculation_snapshot, created_at
+        )
+        SELECT
+            id, ts, item_name, note,
+            CAST(unit_cost AS TEXT), CAST(unit_steam_sell AS TEXT), qty,
+            CAST(unit_net AS TEXT), CAST(total_cost AS TEXT), CAST(total_steam_sell AS TEXT), CAST(total_net AS TEXT),
+            CAST(discount AS TEXT), CAST(ratio AS TEXT),
+            settings_snapshot, calculation_snapshot, created_at
+        FROM history;
+
+        DROP TABLE history;
+
+        ALTER TABLE history_new RENAME TO history;
+
+        CREATE INDEX IF NOT EXISTS idx_history_id_desc ON history(id DESC);
+        CREATE INDEX IF NOT EXISTS idx_history_ts_desc ON history(ts DESC);
+        """,
+        check_old_structure=check_amount_columns_are_real
+    ))
+
     return manager
 
 
