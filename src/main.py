@@ -1,10 +1,7 @@
 import flet as ft
-from config import DEFAULT_SETTINGS, CURRENCY_SYMBOLS
 from utils import safe_float, safe_int
 from utils.i18n import get_text
 from services.database import init_db, get_settings, get_records, get_stats, add_record, clear_records
-from state.app_state import app_state
-from services.exchange_rate import fetch_exchange_rate
 from models import HistoryRecord
 from views import (
     create_calculator_view,
@@ -15,10 +12,9 @@ from views import (
 from ui.glassmorphism import (
     create_gradient_background,
     create_floating_orbs,
-    create_glass_card,
-    create_glass_button,
-    get_glassmorphism_style,
 )
+from ui.navigation import create_navigation
+from controllers import setup_settings_controller
 
 
 def main(page: ft.Page):
@@ -26,7 +22,6 @@ def main(page: ft.Page):
     page.window_width = 1040
     page.window_height = 760
     page.theme_mode = ft.ThemeMode.DARK
-
     page.theme = ft.Theme(
         use_material3=True,
         color_scheme_seed=ft.Colors.INDIGO,
@@ -34,11 +29,8 @@ def main(page: ft.Page):
     )
 
     init_db()
-    
     settings = get_settings()
-    page.theme_mode = ft.ThemeMode.DARK
     page.title = get_text("app_title", settings.language)
-
     page.bgcolor = ft.Colors.TRANSPARENT
 
     def get_t():
@@ -46,10 +38,10 @@ def main(page: ft.Page):
         return lambda key, **kwargs: get_text(key, lang, **kwargs)
 
     t = get_t()
-
     snack = ft.SnackBar(content=ft.Text(""))
     page.snack_bar = snack
 
+    # --- Views ---
     def on_add_to_history(tf_item, tf_note, tf_cost, tf_steam_sell, tf_qty, record_data=None):
         item_name = (tf_item.value or "").strip()
         if not item_name:
@@ -76,7 +68,7 @@ def main(page: ft.Page):
             "unit_steam_sell": unit_sell,
             "qty": qty,
         }
-        
+
         if record_data:
             payload.update({
                 "discount": record_data.get("discount", 0.0),
@@ -127,10 +119,8 @@ def main(page: ft.Page):
     def refresh_history_and_stats():
         records = get_records()
         stats_data = get_stats()
-
         dt.rows = [row_for_record(r, refresh_history_and_stats) for r in records]
         update_stats(stats_data)
-
         page.update()
 
     def clear_all(_):
@@ -142,7 +132,24 @@ def main(page: ft.Page):
         snack.open = True
         refresh_history_and_stats()
 
-    is_dark = page.theme_mode == ft.ThemeMode.DARK
+    settings_ui = create_settings_view(settings, snack, t, page)
+    settings_view = settings_ui["view"]
+
+    # --- Navigation ---
+    tab_buttons, switch_view, register_view = create_navigation(t, page)
+    register_view("calculator", calc_card)
+    register_view("stats", stats_view)
+    register_view("settings", settings_view)
+
+    # --- Settings controller ---
+    def rebuild_ui():
+        page.controls.clear()
+        main(page)
+
+    setup_settings_controller(settings_ui, page, snack, t, rebuild_ui)
+
+    # --- Layout ---
+    is_dark = True
 
     history_view = ft.Column(
         expand=True,
@@ -156,8 +163,8 @@ def main(page: ft.Page):
                         spacing=10,
                         controls=[
                             ft.OutlinedButton(
-                                t("refresh"), 
-                                icon=ft.Icons.REFRESH, 
+                                t("refresh"),
+                                icon=ft.Icons.REFRESH,
                                 on_click=lambda _: refresh_history_and_stats(),
                                 style=ft.ButtonStyle(
                                     padding=10,
@@ -165,8 +172,8 @@ def main(page: ft.Page):
                                 ),
                             ),
                             ft.OutlinedButton(
-                                t("clear_all"), 
-                                icon=ft.Icons.DELETE_SWEEP_OUTLINED, 
+                                t("clear_all"),
+                                icon=ft.Icons.DELETE_SWEEP_OUTLINED,
                                 on_click=clear_all,
                                 style=ft.ButtonStyle(
                                     padding=10,
@@ -178,9 +185,9 @@ def main(page: ft.Page):
                 ],
             ),
             ft.Container(
-                expand=True, 
-                border_radius=16, 
-                padding=14, 
+                expand=True,
+                border_radius=16,
+                padding=14,
                 bgcolor=ft.Colors.with_opacity(0.2 if is_dark else 0.4, ft.Colors.SURFACE),
                 border=ft.BorderSide(1, ft.Colors.with_opacity(0.2, ft.Colors.WHITE if is_dark else ft.Colors.BLACK)),
                 shadow=ft.BoxShadow(
@@ -193,178 +200,7 @@ def main(page: ft.Page):
             ),
         ],
     )
-
-    settings_ui = create_settings_view(settings, snack, t, page)
-    settings_view = settings_ui["view"]
-    tf_buy_currency = settings_ui["tf_buy_currency"]
-    tf_sell_currency = settings_ui["tf_sell_currency"]
-    tf_exchange_rate = settings_ui["tf_exchange_rate"]
-    tf_fee_rate = settings_ui["tf_fee_rate"]
-    dd_my_currency = settings_ui["dd_my_currency"]
-    dd_language = settings_ui["dd_language"]
-    btn_fetch_rate = settings_ui["btn_fetch_rate"]
-    update_save_status = settings_ui["update_save_status"]
-    update_exchange_label = settings_ui["update_exchange_label"]
-    mark_unsaved = settings_ui["mark_unsaved"]
-    check_unsaved = settings_ui["check_unsaved"]
-    save_button = settings_ui["save_button"]
-
-    check_unsaved()
-
-    def fetch_exchange_rate_handler(_):
-        buy_code = tf_buy_currency.value or "CNY"
-        sell_code = tf_sell_currency.value or "CNY"
-
-        if buy_code == sell_code:
-            snack.content = ft.Text(t("error_same_currency"))
-            snack.open = True
-            page.update()
-            return
-
-        snack.content = ft.Text(t("fetching_rate"))
-        snack.open = True
-        page.update()
-
-        rate, updated_at, message = fetch_exchange_rate(buy_code, sell_code, force_refresh=True)
-        
-        if "成功" in message:
-            tf_exchange_rate.value = str(rate)
-            snack.content = ft.Text(t("rate_success", base=buy_code, target=sell_code, rate=rate))
-            settings_ui["mark_unsaved"]()
-        else:
-            snack.content = ft.Text(t("rate_failed"))
-        snack.open = True
-        page.update()
-
-    btn_fetch_rate.on_click = fetch_exchange_rate_handler
-
-    def save_settings_click(_):
-        current_settings = get_settings()
-        old_language = current_settings.language
-        
-        buy_currency = tf_buy_currency.value or "CNY"
-        sell_currency = tf_sell_currency.value or "CNY"
-        exchange_rate = safe_float(tf_exchange_rate.value)
-        fee_rate = safe_float(tf_fee_rate.value) / 100.0
-        my_currency = dd_my_currency.value or "CNY"
-        language = dd_language.value or "zh"
-
-        if fee_rate <= 0 or fee_rate >= 1:
-            snack.content = ft.Text(t("error_invalid_fee"))
-            snack.open = True
-            page.update()
-            return
-
-        new_settings = {
-            "buy_currency": buy_currency,
-            "buy_currency_symbol": CURRENCY_SYMBOLS[buy_currency],
-            "sell_currency": sell_currency,
-            "sell_currency_symbol": CURRENCY_SYMBOLS[sell_currency],
-            "exchange_rate": exchange_rate,
-            "steam_fee_rate": fee_rate,
-            "my_currency": my_currency,
-            "my_currency_symbol": CURRENCY_SYMBOLS[my_currency],
-            "language": language,
-        }
-
-        settings = app_state.update_settings(new_settings)
-        
-        page.theme_mode = ft.ThemeMode.DARK
-        tf_exchange_rate.label = t("exchange_rate", from_curr=buy_currency, to_curr=sell_currency)
-        snack.content = ft.Text(t("saved"))
-        update_save_status(True)
-        page.update()
-        
-        if language != old_language:
-            page.snack_bar.open = False
-            rebuild_ui()
-
-    save_button.on_click = save_settings_click
-
-    current_view = "calculator"
-
-    def switch_view(view_name):
-        nonlocal current_view
-        current_view = view_name
-        calc_card.visible = (view_name == "calculator")
-        history_view.visible = (view_name == "history")
-        stats_view.visible = (view_name == "stats")
-        settings_view.visible = (view_name == "settings")
-        update_button_styles()
-        page.update()
-    
-    def update_button_styles():
-        for btn, view_name in buttons:
-            if view_name == current_view:
-                btn.style.bgcolor = ft.Colors.with_opacity(0.8, ft.Colors.INDIGO)
-                btn.style.color = ft.Colors.WHITE
-                btn.style.overlay_color = ft.Colors.with_opacity(0.2, ft.Colors.WHITE)
-            else:
-                btn.style.bgcolor = ft.Colors.with_opacity(0.3, ft.Colors.SURFACE)
-                btn.style.color = ft.Colors.WHITE
-                btn.style.overlay_color = ft.Colors.with_opacity(0.1, ft.Colors.WHITE)
-        page.update()
-    
-    btn_calculator = ft.Button(
-        t("calculator"),
-        icon=ft.Icons.CALCULATE_OUTLINED,
-        on_click=lambda _: switch_view("calculator"),
-        style=ft.ButtonStyle(
-            bgcolor=ft.Colors.with_opacity(0.8, ft.Colors.INDIGO),
-            color=ft.Colors.WHITE,
-            padding=10,
-            shape=ft.RoundedRectangleBorder(radius=10),
-            overlay_color=ft.Colors.with_opacity(0.2, ft.Colors.WHITE),
-        ),
-    )
-    
-    btn_history = ft.Button(
-        t("history"),
-        icon=ft.Icons.HISTORY,
-        on_click=lambda _: switch_view("history"),
-        style=ft.ButtonStyle(
-            bgcolor=ft.Colors.with_opacity(0.3, ft.Colors.SURFACE),
-            color=ft.Colors.WHITE,
-            padding=10,
-            shape=ft.RoundedRectangleBorder(radius=10),
-            overlay_color=ft.Colors.with_opacity(0.1, ft.Colors.WHITE),
-        ),
-    )
-    
-    btn_stats = ft.Button(
-        t("stats"),
-        icon=ft.Icons.INSIGHTS_OUTLINED,
-        on_click=lambda _: switch_view("stats"),
-        style=ft.ButtonStyle(
-            bgcolor=ft.Colors.with_opacity(0.3, ft.Colors.SURFACE),
-            color=ft.Colors.WHITE,
-            padding=10,
-            shape=ft.RoundedRectangleBorder(radius=10),
-            overlay_color=ft.Colors.with_opacity(0.1, ft.Colors.WHITE),
-        ),
-    )
-    
-    btn_settings = ft.Button(
-        t("settings"),
-        icon=ft.Icons.SETTINGS_OUTLINED,
-        on_click=lambda _: switch_view("settings"),
-        style=ft.ButtonStyle(
-            bgcolor=ft.Colors.with_opacity(0.3, ft.Colors.SURFACE),
-            color=ft.Colors.WHITE,
-            padding=10,
-            shape=ft.RoundedRectangleBorder(radius=10),
-            overlay_color=ft.Colors.with_opacity(0.1, ft.Colors.WHITE),
-        ),
-    )
-    
-    buttons = [
-        (btn_calculator, "calculator"),
-        (btn_history, "history"),
-        (btn_stats, "stats"),
-        (btn_settings, "settings"),
-    ]
-    
-    tab_buttons = ft.Row([btn for btn, _ in buttons], spacing=8)
+    register_view("history", history_view)
 
     main_content = ft.Container(
         padding=16,
@@ -402,23 +238,20 @@ def main(page: ft.Page):
         ),
     )
 
-    background_stack = ft.Stack(
-        [
-            create_gradient_background(is_dark),
-            create_floating_orbs(is_dark),
-            ft.Container(
-                content=main_content,
-                padding=20,
-                expand=True,
-            ),
-        ],
-        expand=True,
-        width=float("inf"),
-        height=float("inf"),
+    page.add(
+        ft.Stack(
+            [
+                create_gradient_background(is_dark),
+                create_floating_orbs(is_dark),
+                ft.Container(content=main_content, padding=20, expand=True),
+            ],
+            expand=True,
+            width=float("inf"),
+            height=float("inf"),
+        )
     )
 
-    page.add(background_stack)
-
+    # --- Start ---
     history_view.visible = False
     stats_view.visible = False
     settings_view.visible = False
@@ -426,9 +259,6 @@ def main(page: ft.Page):
     recalc()
     page.update()
 
-    def rebuild_ui():
-        page.controls.clear()
-        main(page)
 
 if __name__ == "__main__":
     ft.run(main, view=ft.AppView.FLET_APP, port=0)
