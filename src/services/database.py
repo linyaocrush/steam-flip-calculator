@@ -314,7 +314,7 @@ def get_records(limit: int = 500) -> List[HistoryRecord]:
     return records
 
 
-def add_record(record: HistoryRecord, settings: Settings) -> bool:
+def add_record(record: HistoryRecord, settings: Settings) -> HistoryRecord:
     import json
     from decimal import Decimal
 
@@ -348,9 +348,10 @@ def add_record(record: HistoryRecord, settings: Settings) -> bool:
              str(record.unit_net), str(record.total_cost), str(record.total_steam_sell), str(record.total_net),
              str(record.discount), str(record.ratio), settings_snapshot, calculation_snapshot),
         )
+        record.id = cur.lastrowid
 
     invalidate_stats_cache()
-    return True
+    return record
 
 
 def delete_record(record_id: int) -> bool:

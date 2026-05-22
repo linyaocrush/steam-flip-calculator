@@ -84,14 +84,15 @@ def main(page: ft.Page):
             })
 
         record = HistoryRecord(**payload)
-        success = add_record(record, settings)
+        saved_record = add_record(record, settings)
 
-        if success:
+        if saved_record:
             snack.content = ft.Text(t("save_success"))
+            add_row(saved_record, refresh_stats)
         else:
             snack.content = ft.Text(t("save_failed"))
         snack.open = True
-        refresh_history_and_stats()
+        refresh_stats()
 
     calculator = create_calculator_view(settings, on_add_to_history, t, page)
     calc_card = calculator["view"]
@@ -111,16 +112,17 @@ def main(page: ft.Page):
     history = create_history_view(settings, snack, t, page)
     dt = history["dt"]
     row_for_record = history["row_for_record"]
+    add_row = history["add_row"]
 
     def refresh_history():
         records = get_records()
-        dt.rows = [row_for_record(r, refresh_history_and_stats) for r in records]
+        dt.rows = [row_for_record(r, refresh_stats) for r in records]
         page.update()
 
     def refresh_history_and_stats():
         records = get_records()
         stats_data = get_stats()
-        dt.rows = [row_for_record(r, refresh_history_and_stats) for r in records]
+        dt.rows = [row_for_record(r, refresh_stats) for r in records]
         update_stats(stats_data)
         page.update()
 
@@ -128,10 +130,11 @@ def main(page: ft.Page):
         success = clear_records()
         if success:
             snack.content = ft.Text(t("clear_success"))
+            dt.rows.clear()
         else:
             snack.content = ft.Text(t("clear_failed"))
         snack.open = True
-        refresh_history_and_stats()
+        refresh_stats()
 
     settings_ui = create_settings_view(settings, snack, t, page)
     settings_view = settings_ui["view"]

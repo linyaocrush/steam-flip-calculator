@@ -26,22 +26,32 @@ def create_history_view(settings, snack, t, page):
         width=float("inf"),
     )
 
-    def delete_record(record_id, refresh_callback):
+    def remove_row(record_id):
+        """Remove a single DataRow by record id (stored in row.data)."""
+        for i, row in enumerate(dt.rows):
+            if row.data == record_id:
+                dt.rows.pop(i)
+                return True
+        return False
+
+    def delete_record(record_id, refresh_stats_callback):
         from services.database import delete_record as db_delete_record
         success = db_delete_record(record_id)
         if success:
+            remove_row(record_id)
             snack.content = ft.Text(t("delete_success"))
         else:
             snack.content = ft.Text(t("delete_failed"))
         snack.open = True
-        refresh_callback()
+        refresh_stats_callback()
         page.update()
 
-    def row_for_record(record, refresh_callback):
+    def row_for_record(record, delete_callback):
         buy_symbol = CURRENCY_SYMBOLS.get(record.buy_currency, "¥")
         sell_symbol = CURRENCY_SYMBOLS.get(record.sell_currency, "¥")
 
-        return ft.DataRow(
+        row = ft.DataRow(
+            data=record.id,
             cells=[
                 ft.DataCell(ft.Text(record.ts, size=11)),
                 ft.DataCell(
@@ -67,13 +77,23 @@ def create_history_view(settings, snack, t, page):
                         ft.Icons.DELETE_OUTLINE,
                         icon_color=ft.Colors.RED,
                         tooltip=t("delete"),
-                        on_click=lambda _, rid=record.id: delete_record(rid, refresh_callback),
+                        on_click=lambda _, rid=record.id: delete_record(rid, delete_callback),
                     )
                 ),
             ],
         )
+        return row
+
+    def add_row(record, delete_callback):
+        """Prepend a single DataRow (for incremental add)."""
+        row = row_for_record(record, delete_callback)
+        dt.rows.insert(0, row)
+        page.update()
 
     return {
         "dt": dt,
         "row_for_record": row_for_record,
+        "add_row": add_row,
+        "remove_row": remove_row,
+        "delete_record": delete_record,
     }
