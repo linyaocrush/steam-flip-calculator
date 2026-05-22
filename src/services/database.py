@@ -83,7 +83,7 @@ def init_db():
 
     cur.execute("CREATE INDEX IF NOT EXISTS idx_history_id_desc ON history(id DESC)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_history_ts_desc ON history(ts DESC)")
-    
+
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS exchange_rates (
@@ -97,21 +97,7 @@ def init_db():
         """
     )
     cur.execute("CREATE INDEX IF NOT EXISTS idx_exchange_rates_base_target ON exchange_rates(base_currency, target_currency)")
-    
-    cur.execute("PRAGMA table_info(history)")
-    columns = [column[1] for column in cur.fetchall()]
-    if 'ratio' not in columns:
-        cur.execute("ALTER TABLE history ADD COLUMN ratio REAL NOT NULL DEFAULT 0")
-    
-    cur.execute("PRAGMA table_info(settings)")
-    settings_columns = [column[1] for column in cur.fetchall()]
-    if 'last_item_name' not in settings_columns:
-        cur.execute("ALTER TABLE settings ADD COLUMN last_item_name TEXT")
-    if 'last_unit_cost' not in settings_columns:
-        cur.execute("ALTER TABLE settings ADD COLUMN last_unit_cost REAL")
-    if 'last_unit_sell' not in settings_columns:
-        cur.execute("ALTER TABLE settings ADD COLUMN last_unit_sell REAL")
-    
+
     cur.execute("SELECT COUNT(*) FROM settings")
     if cur.fetchone()[0] == 0:
         default_settings = Settings()
