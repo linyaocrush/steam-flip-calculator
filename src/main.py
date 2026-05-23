@@ -14,7 +14,7 @@ from ui.glassmorphism import (
     create_gradient_background,
     create_floating_orbs,
 )
-from ui.navigation import create_navigation
+from ui.navigation import create_navigation, AppView
 from controllers import setup_settings_controller
 from state.app_state import app_state
 
@@ -141,9 +141,9 @@ def main(page: ft.Page):
 
     # --- Navigation ---
     tab_buttons, switch_view, register_view, refresh_nav = create_navigation(t, page)
-    register_view("calculator", calc_card)
-    register_view("stats", stats_view)
-    register_view("settings", settings_view)
+    register_view(AppView.CALCULATOR, calc_card)
+    register_view(AppView.STATS, stats_view)
+    register_view(AppView.SETTINGS, settings_view)
 
     # --- Settings controller ---
     setup_settings_controller(settings_ui, page, snack, t)
@@ -205,7 +205,7 @@ def main(page: ft.Page):
             ),
         ],
     )
-    register_view("history", history_view)
+    register_view(AppView.HISTORY, history_view)
 
     main_content = ft.Container(
         padding=16,
