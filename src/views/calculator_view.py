@@ -2,7 +2,7 @@ import flet as ft
 from decimal import Decimal, ROUND_HALF_UP
 from typing import NamedTuple, Callable
 from utils import money_decimal, pct_decimal, pct_raw, safe_float, safe_decimal, safe_int, Debouncer
-from services.calculator import calculate_local
+from services.calculator import calculate_local, calculate_reverse_quantity
 from services.database import save_settings
 from state.app_state import app_state
 
@@ -236,19 +236,18 @@ def create_calculator_view(settings, on_add_to_history, t, page):
             out_required_cost.value = "-"
             return
 
-        net_rate = 1.0 - current_settings.steam_fee_rate
-        unit_net = unit_sell * net_rate
-        required_qty = int((target_amount / unit_net) + 0.999)
-        required_cost = unit_cost * required_qty
+        required_qty = calculate_reverse_quantity(target_amount, unit_sell, current_settings.steam_fee_rate)
+        required_cost_buy = Decimal(str(unit_cost)) * Decimal(str(required_qty))
 
         use_exchange = current_settings.buy_currency != current_settings.sell_currency
         if use_exchange:
-            required_cost_display = required_cost * current_settings.exchange_rate
+            required_cost_display = (required_cost_buy * Decimal(str(current_settings.exchange_rate))).quantize(
+                Decimal('0.01'), rounding=ROUND_HALF_UP)
         else:
-            required_cost_display = required_cost
+            required_cost_display = required_cost_buy
 
         out_required_qty.value = str(required_qty)
-        out_required_cost.value = format_cost(Decimal(str(required_cost_display)))
+        out_required_cost.value = format_cost(required_cost_display)
 
     def on_add(_):
         current_settings = app_state.get_settings()
