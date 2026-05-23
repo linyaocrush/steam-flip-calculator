@@ -29,6 +29,8 @@ def create_navigation(t, page):
                 btn.style.overlay_color = ft.Colors.with_opacity(0.1, ft.Colors.WHITE)
         page.update()
 
+    _btn_labels = {}
+
     def _btn(label_key, icon, view_name):
         btn = ft.Button(
             t(label_key),
@@ -43,7 +45,12 @@ def create_navigation(t, page):
             ),
         )
         buttons.append((btn, view_name))
+        _btn_labels[view_name] = label_key
         return btn
+
+    def refresh_language(t_new):
+        for btn, name in buttons:
+            btn.text = t_new(_btn_labels[name])
 
     tab_buttons = ft.Row([
         _btn("calculator", ft.Icons.CALCULATE_OUTLINED, "calculator"),
@@ -52,4 +59,4 @@ def create_navigation(t, page):
         _btn("settings", ft.Icons.SETTINGS_OUTLINED, "settings"),
     ], spacing=8)
 
-    return tab_buttons, switch_view, register_view
+    return tab_buttons, switch_view, register_view, refresh_language

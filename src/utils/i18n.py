@@ -26,6 +26,7 @@ TRANSLATIONS = {
         "break_even_price": "保本售卖价(单价):",
         "add_to_history": "记录到历史",
         
+        "target_title": "反推数量",
         "target_amount": "目标金额",
         "target_amount_desc": "需要的余额:",
         "required_qty": "需要购买数量:",
@@ -133,6 +134,7 @@ TRANSLATIONS = {
         "break_even_price": "Break-even Price (Unit):",
         "add_to_history": "Add to History",
         
+        "target_title": "Target Quantity",
         "target_amount": "Target Amount",
         "target_amount_desc": "Required Balance:",
         "required_qty": "Required Quantity:",
@@ -239,7 +241,14 @@ TRANSLATIONS = {
         "steam_fee": "Steam市場固定 {fee:.1f}% 手数料",
         "break_even_price": "損益分岐価格(単価):",
         "add_to_history": "履歴に記録",
-        
+
+        "target_title": "目標数量計算",
+        "target_amount": "目標金額",
+        "target_amount_desc": "必要な残高:",
+        "required_qty": "必要な購入数量:",
+        "required_cost": "必要なコスト:",
+        "calculate_qty": "数量を計算",
+
         "result_title": "計算結果（単価と数量別）",
         "unit_net": "Steam実質受取額(単価):",
         "total_cost": "総コスト:",

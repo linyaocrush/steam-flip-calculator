@@ -20,6 +20,7 @@ class SettingsView(NamedTuple):
     mark_unsaved: Callable
     check_unsaved: Callable
     save_button: ft.Control
+    refresh_language: Callable
 
 
 def create_settings_view(settings, snack, t, page):
@@ -196,6 +197,35 @@ def create_settings_view(settings, snack, t, page):
         page.update()
         return True
 
+    txt_settings_title = ft.Text(t("settings_title"), size=20, weight=ft.FontWeight.W_700)
+    txt_settings_desc = ft.Text(t("settings_desc"), size=15, weight=ft.FontWeight.W_600)
+
+    desc_keys = [
+        "buy_currency_desc", "sell_currency_desc", "exchange_rate_desc",
+        "fee_rate_desc", "my_currency_desc", "language_desc",
+    ]
+    desc_texts = {key: ft.Text(t(key), size=13, opacity=0.8) for key in desc_keys}
+
+    btn_reset = ft.OutlinedButton(
+        t("reset"),
+        icon=ft.Icons.UNDO,
+        on_click=reset_settings,
+        style=ft.ButtonStyle(
+            padding=12,
+            shape=ft.RoundedRectangleBorder(radius=10),
+        ),
+    )
+    btn_save = ft.FilledButton(
+        t("save_settings"),
+        icon=ft.Icons.SAVE,
+        style=ft.ButtonStyle(
+            bgcolor=ft.Colors.with_opacity(0.8, ft.Colors.INDIGO),
+            color=ft.Colors.WHITE,
+            padding=14,
+            shape=ft.RoundedRectangleBorder(radius=12),
+        ),
+    )
+
     settings_view = ft.Container(
         padding=20,
         border_radius=18,
@@ -213,7 +243,7 @@ def create_settings_view(settings, snack, t, page):
                 ft.Row(
                     alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                     controls=[
-                        ft.Text(t("settings_title"), size=20, weight=ft.FontWeight.W_700),
+                        txt_settings_title,
                         save_status_text,
                     ],
                 ),
@@ -237,46 +267,44 @@ def create_settings_view(settings, snack, t, page):
                         ],
                     ),
                 ),
-                ft.Text(t("settings_desc"), size=15, weight=ft.FontWeight.W_600),
+                txt_settings_desc,
                 ft.Column(
                     spacing=6,
                     controls=[
-                        ft.Text(t("buy_currency_desc"), size=13, opacity=0.8),
-                        ft.Text(t("sell_currency_desc"), size=13, opacity=0.8),
-                        ft.Text(t("exchange_rate_desc"), size=13, opacity=0.8),
-                        ft.Text(t("fee_rate_desc"), size=13, opacity=0.8),
-                        ft.Text(t("my_currency_desc"), size=13, opacity=0.8),
-                        ft.Text(t("language_desc"), size=13, opacity=0.8),
+                        desc_texts["buy_currency_desc"],
+                        desc_texts["sell_currency_desc"],
+                        desc_texts["exchange_rate_desc"],
+                        desc_texts["fee_rate_desc"],
+                        desc_texts["my_currency_desc"],
+                        desc_texts["language_desc"],
                     ],
                 ),
                 ft.Row(
                         spacing=12,
                         alignment=ft.MainAxisAlignment.END,
                         controls=[
-                            ft.OutlinedButton(
-                                t("reset"), 
-                                icon=ft.Icons.UNDO, 
-                                on_click=reset_settings,
-                                style=ft.ButtonStyle(
-                                    padding=12,
-                                    shape=ft.RoundedRectangleBorder(radius=10),
-                                ),
-                            ),
-                            ft.FilledButton(
-                                t("save_settings"), 
-                                icon=ft.Icons.SAVE,
-                                style=ft.ButtonStyle(
-                                    bgcolor=ft.Colors.with_opacity(0.8, ft.Colors.INDIGO),
-                                    color=ft.Colors.WHITE,
-                                    padding=14,
-                                    shape=ft.RoundedRectangleBorder(radius=12),
-                                ),
-                            ),
+                            btn_reset,
+                            btn_save,
                         ],
                     ),
             ],
         ),
     )
+
+    def refresh_language(t_new):
+        tf_buy_currency.label = t_new("buy_currency")
+        tf_sell_currency.label = t_new("sell_currency")
+        tf_exchange_rate.label = t_new("exchange_rate", from_curr=tf_buy_currency.value, to_curr=tf_sell_currency.value)
+        tf_fee_rate.label = t_new("fee_rate")
+        dd_my_currency.label = t_new("my_currency")
+        dd_language.label = t_new("language")
+        btn_fetch_rate.text = t_new("fetch_rate")
+        btn_reset.text = t_new("reset")
+        btn_save.text = t_new("save_settings")
+        txt_settings_title.value = t_new("settings_title")
+        txt_settings_desc.value = t_new("settings_desc")
+        for key in desc_keys:
+            desc_texts[key].value = t_new(key)
 
     return SettingsView(
         view=settings_view,
@@ -291,5 +319,6 @@ def create_settings_view(settings, snack, t, page):
         update_exchange_label=update_exchange_label,
         mark_unsaved=mark_unsaved,
         check_unsaved=check_unsaved,
-        save_button=settings_view.content.controls[4].controls[1],
+        save_button=btn_save,
+        refresh_language=refresh_language,
     )

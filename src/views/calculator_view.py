@@ -12,6 +12,7 @@ class CalculatorView(NamedTuple):
     recalc: Callable
     tf_cost: ft.TextField
     tf_steam_sell: ft.TextField
+    refresh_language: Callable
 
 
 def _get_my_currency_amounts(total_cost_buy: Decimal, total_net: Decimal, total_steam_sell: Decimal,
@@ -138,6 +139,23 @@ def create_calculator_view(settings, on_add_to_history, t, page):
     
     out_required_qty = ft.Text(value="-")
     out_required_cost = ft.Text(value="-")
+
+    # Translatable label controls
+    txt_result_title = ft.Text(t("result_title"), size=16, weight=ft.FontWeight.W_600)
+    txt_target_title = ft.Text(t("target_title"), size=16, weight=ft.FontWeight.W_600)
+    txt_reverse_title = ft.Text(t("reverse_title"), size=16, weight=ft.FontWeight.W_600)
+
+    txt_unit_net_label = ft.Text(t("unit_net"), size=12, width=100)
+    txt_total_cost_label = ft.Text(t("total_cost"), size=12, width=100)
+    txt_total_net_label = ft.Text(t("total_net"), size=12, width=100)
+    txt_ratio_label = ft.Text(t("flip_ratio"), size=12, width=100)
+    txt_discount_label = ft.Text(t("discount"), size=12, width=100)
+
+    txt_required_qty_label = ft.Text(t("required_qty"), size=12, width=100)
+    txt_required_cost_label = ft.Text(t("required_cost"), size=12, width=100)
+
+    txt_fee_label = ft.Text(t("steam_fee", fee=app_state.get_settings().steam_fee_rate * 100), size=12)
+    txt_break_even_label = ft.Text(t("break_even_price"), size=12, width=100)
 
     def format_price(amount: Decimal, currency_symbol, currency_code):
         current_settings = app_state.get_settings()
@@ -296,6 +314,18 @@ def create_calculator_view(settings, on_add_to_history, t, page):
 
     app_state.subscribe(on_settings_changed)
 
+    btn_add_to_history = ft.FilledButton(
+        t("add_to_history"),
+        icon=ft.Icons.ADD_OUTLINED,
+        on_click=on_add,
+        style=ft.ButtonStyle(
+            bgcolor=ft.Colors.with_opacity(0.8, ft.Colors.INDIGO),
+            color=ft.Colors.WHITE,
+            padding=14,
+            shape=ft.RoundedRectangleBorder(radius=12),
+        ),
+    )
+
     calc_card = ft.Container(
         padding=20,
         border_radius=18,
@@ -335,42 +365,42 @@ def create_calculator_view(settings, on_add_to_history, t, page):
                             content=ft.Column(
                                 spacing=8,
                                 controls=[
-                                    ft.Text(t("result_title"), size=16, weight=ft.FontWeight.W_600),
+                                    txt_result_title,
                                     ft.Column(
                                         spacing=6,
                                         controls=[
                                             ft.Row(
                                                 spacing=10,
                                                 controls=[
-                                                    ft.Text(t("unit_net"), size=12, width=100),
+                                                    txt_unit_net_label,
                                                     out_unit_net,
                                                 ],
                                             ),
                                             ft.Row(
                                                 spacing=10,
                                                 controls=[
-                                                    ft.Text(t("total_cost"), size=12, width=100),
+                                                    txt_total_cost_label,
                                                     out_total_cost,
                                                 ],
                                             ),
                                             ft.Row(
                                                 spacing=10,
                                                 controls=[
-                                                    ft.Text(t("total_net"), size=12, width=100),
+                                                    txt_total_net_label,
                                                     out_total_net,
                                                 ],
                                             ),
                                             ft.Row(
                                                 spacing=10,
                                                 controls=[
-                                                    ft.Text(t("flip_ratio"), size=12, width=100),
+                                                    txt_ratio_label,
                                                     out_ratio,
                                                 ],
                                             ),
                                             ft.Row(
                                                 spacing=10,
                                                 controls=[
-                                                    ft.Text(t("discount"), size=12, width=100),
+                                                    txt_discount_label,
                                                     out_discount,
                                                 ],
                                             ),
@@ -384,7 +414,7 @@ def create_calculator_view(settings, on_add_to_history, t, page):
                             content=ft.Column(
                                 spacing=8,
                                 controls=[
-                                    ft.Text("反推数量", size=16, weight=ft.FontWeight.W_600),
+                                    txt_target_title,
                                     tf_target_amount,
                                     ft.Column(
                                         spacing=6,
@@ -392,14 +422,14 @@ def create_calculator_view(settings, on_add_to_history, t, page):
                                             ft.Row(
                                                 spacing=10,
                                                 controls=[
-                                                    ft.Text(t("required_qty"), size=12, width=100),
+                                                    txt_required_qty_label,
                                                     out_required_qty,
                                                 ],
                                             ),
                                             ft.Row(
                                                 spacing=10,
                                                 controls=[
-                                                    ft.Text(t("required_cost"), size=12, width=100),
+                                                    txt_required_cost_label,
                                                     out_required_cost,
                                                 ],
                                             ),
@@ -413,15 +443,15 @@ def create_calculator_view(settings, on_add_to_history, t, page):
                             content=ft.Column(
                                 spacing=8,
                                 controls=[
-                                    ft.Text(t("reverse_title"), size=16, weight=ft.FontWeight.W_600),
+                                    txt_reverse_title,
                                     ft.Column(
                                         spacing=6,
                                         controls=[
-                                            ft.Text(t("steam_fee", fee=app_state.get_settings().steam_fee_rate * 100), size=12),
+                                            txt_fee_label,
                                             ft.Row(
                                                 spacing=10,
                                                 controls=[
-                                                    ft.Text(t("break_even_price"), size=12, width=100),
+                                                    txt_break_even_label,
                                                     out_need_sell,
                                                 ],
                                             ),
@@ -435,26 +465,46 @@ def create_calculator_view(settings, on_add_to_history, t, page):
                 ft.Row(
                     alignment=ft.MainAxisAlignment.END,
                     controls=[
-                        ft.FilledButton(
-                            t("add_to_history"), 
-                            icon=ft.Icons.ADD_OUTLINED, 
-                            on_click=on_add,
-                            style=ft.ButtonStyle(
-                                bgcolor=ft.Colors.with_opacity(0.8, ft.Colors.INDIGO),
-                                color=ft.Colors.WHITE,
-                                padding=14,
-                                shape=ft.RoundedRectangleBorder(radius=12),
-                            ),
-                        ),
+                        btn_add_to_history,
                     ],
                 ),
             ],
         ),
     )
 
+    def refresh_language(t):
+        tf_item.label = t("item_name")
+        tf_note.label = t("note")
+        tf_cost.label = t("cost")
+        tf_steam_sell.label = t("steam_sell")
+        tf_qty.label = t("quantity")
+        tf_target_amount.label = t("target_amount")
+        tf_target_amount.hint_text = t("target_amount_desc")
+
+        txt_result_title.value = t("result_title")
+        txt_target_title.value = t("target_title")
+        txt_reverse_title.value = t("reverse_title")
+
+        txt_unit_net_label.value = t("unit_net")
+        txt_total_cost_label.value = t("total_cost")
+        txt_total_net_label.value = t("total_net")
+        txt_ratio_label.value = t("flip_ratio")
+        txt_discount_label.value = t("discount")
+
+        txt_required_qty_label.value = t("required_qty")
+        txt_required_cost_label.value = t("required_cost")
+
+        current_settings = app_state.get_settings()
+        txt_fee_label.value = t("steam_fee", fee=current_settings.steam_fee_rate * 100)
+        txt_break_even_label.value = t("break_even_price")
+
+        btn_add_to_history.text = t("add_to_history")
+        recalc()
+
     return CalculatorView(
         view=calc_card,
         recalc=recalc,
         tf_cost=tf_cost,
         tf_steam_sell=tf_steam_sell,
+        refresh_language=refresh_language,
     )

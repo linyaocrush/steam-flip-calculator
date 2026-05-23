@@ -1,12 +1,11 @@
 import flet as ft
 from utils import safe_float
 from config import CURRENCY_SYMBOLS
-from services.database import get_settings
 from services.exchange_rate import fetch_exchange_rate
 from state.app_state import app_state
 
 
-def setup_settings_controller(settings_ui, page, snack, t, rebuild_ui):
+def setup_settings_controller(settings_ui, page, snack, t):
     """Wire up the fetch-rate and save buttons in the settings view."""
     tf_buy_currency = settings_ui.tf_buy_currency
     tf_sell_currency = settings_ui.tf_sell_currency
@@ -51,9 +50,6 @@ def setup_settings_controller(settings_ui, page, snack, t, rebuild_ui):
     btn_fetch_rate.on_click = fetch_rate_handler
 
     def save_handler(_):
-        current_settings = get_settings()
-        old_language = current_settings.language
-
         buy_currency = tf_buy_currency.value or "CNY"
         sell_currency = tf_sell_currency.value or "CNY"
         exchange_rate = safe_float(tf_exchange_rate.value)
@@ -86,9 +82,5 @@ def setup_settings_controller(settings_ui, page, snack, t, rebuild_ui):
         snack.content = ft.Text(t("saved"))
         update_save_status(True)
         page.update()
-
-        if language != old_language:
-            page.snack_bar.open = False
-            rebuild_ui()
 
     save_button.on_click = save_handler

@@ -16,6 +16,7 @@ from ui.glassmorphism import (
 )
 from ui.navigation import create_navigation
 from controllers import setup_settings_controller
+from state.app_state import app_state
 
 
 def main(page: ft.Page):
@@ -35,8 +36,7 @@ def main(page: ft.Page):
     page.bgcolor = ft.Colors.TRANSPARENT
 
     def get_t():
-        lang = settings.language
-        return lambda key, **kwargs: get_text(key, lang, **kwargs)
+        return lambda key, **kwargs: get_text(key, app_state.get_settings().language, **kwargs)
 
     t = get_t()
     snack = ft.SnackBar(content=ft.Text(""))
@@ -140,20 +140,37 @@ def main(page: ft.Page):
     settings_view = settings_ui.view
 
     # --- Navigation ---
-    tab_buttons, switch_view, register_view = create_navigation(t, page)
+    tab_buttons, switch_view, register_view, refresh_nav = create_navigation(t, page)
     register_view("calculator", calc_card)
     register_view("stats", stats_view)
     register_view("settings", settings_view)
 
     # --- Settings controller ---
-    def rebuild_ui():
-        page.controls.clear()
-        main(page)
-
-    setup_settings_controller(settings_ui, page, snack, t, rebuild_ui)
+    setup_settings_controller(settings_ui, page, snack, t)
 
     # --- Layout ---
     is_dark = True
+
+    txt_app_title = ft.Text(t("app_title"), size=22, weight=ft.FontWeight.W_700, color=ft.Colors.WHITE)
+    txt_history_title = ft.Text(t("history_title"), size=20, weight=ft.FontWeight.W_700)
+    btn_refresh = ft.OutlinedButton(
+        t("refresh"),
+        icon=ft.Icons.REFRESH,
+        on_click=lambda _: refresh_history_and_stats(),
+        style=ft.ButtonStyle(padding=10, shape=ft.RoundedRectangleBorder(radius=10)),
+    )
+    btn_clear_all = ft.OutlinedButton(
+        t("clear_all"),
+        icon=ft.Icons.DELETE_SWEEP_OUTLINED,
+        on_click=clear_all,
+        style=ft.ButtonStyle(padding=10, shape=ft.RoundedRectangleBorder(radius=10)),
+    )
+
+    def refresh_main_language(t):
+        txt_app_title.value = t("app_title")
+        txt_history_title.value = t("history_title")
+        btn_refresh.text = t("refresh")
+        btn_clear_all.text = t("clear_all")
 
     history_view = ft.Column(
         expand=True,
@@ -162,28 +179,12 @@ def main(page: ft.Page):
             ft.Row(
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                 controls=[
-                    ft.Text(t("history_title"), size=20, weight=ft.FontWeight.W_700),
+                    txt_history_title,
                     ft.Row(
                         spacing=10,
                         controls=[
-                            ft.OutlinedButton(
-                                t("refresh"),
-                                icon=ft.Icons.REFRESH,
-                                on_click=lambda _: refresh_history_and_stats(),
-                                style=ft.ButtonStyle(
-                                    padding=10,
-                                    shape=ft.RoundedRectangleBorder(radius=10),
-                                ),
-                            ),
-                            ft.OutlinedButton(
-                                t("clear_all"),
-                                icon=ft.Icons.DELETE_SWEEP_OUTLINED,
-                                on_click=clear_all,
-                                style=ft.ButtonStyle(
-                                    padding=10,
-                                    shape=ft.RoundedRectangleBorder(radius=10),
-                                ),
-                            ),
+                            btn_refresh,
+                            btn_clear_all,
                         ],
                     ),
                 ],
@@ -223,7 +224,7 @@ def main(page: ft.Page):
                                     border_radius=12,
                                     bgcolor=ft.Colors.with_opacity(0.3, ft.Colors.INDIGO),
                                 ),
-                                ft.Text(t("app_title"), size=22, weight=ft.FontWeight.W_700, color=ft.Colors.WHITE if is_dark else ft.Colors.BLACK),
+                                txt_app_title,
                             ],
                         ),
                     ],
@@ -254,6 +255,29 @@ def main(page: ft.Page):
             height=float("inf"),
         )
     )
+
+    # --- Language refresh ---
+    _language_refresh_callbacks = [
+        calculator.refresh_language,
+        stats.refresh_language,
+        history.refresh_language,
+        settings_ui.refresh_language,
+        refresh_nav,
+        refresh_main_language,
+    ]
+
+    _last_language = settings.language
+
+    def _on_settings_changed(new_settings):
+        nonlocal _last_language
+        if new_settings.language != _last_language:
+            _last_language = new_settings.language
+            _t = get_t()
+            for cb in _language_refresh_callbacks:
+                cb(_t)
+            page.update()
+
+    app_state.subscribe(_on_settings_changed)
 
     # --- Start ---
     history_view.visible = False

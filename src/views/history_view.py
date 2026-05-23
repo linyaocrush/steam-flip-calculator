@@ -11,22 +11,35 @@ class HistoryView(NamedTuple):
     add_row: Callable
     remove_row: Callable
     delete_record: Callable
+    refresh_language: Callable
 
 
 def create_history_view(settings, snack, t, page):
+    col_time = ft.Text(t("time"), size=12)
+    col_item = ft.Text(t("item"), size=12)
+    col_qty = ft.Text(t("qty"), size=12)
+    col_cost_unit = ft.Text(t("cost_unit"), size=12)
+    col_sell_unit = ft.Text(t("sell_unit"), size=12)
+    col_net_unit = ft.Text(t("net_unit"), size=12)
+    col_cost_total = ft.Text(t("cost_total"), size=12)
+    col_net_total = ft.Text(t("net_total"), size=12)
+    col_flip_ratio = ft.Text(t("flip_ratio"), size=12)
+    col_discount_pct = ft.Text(t("discount_pct"), size=12)
+    col_action = ft.Text(t("action"), size=12)
+
     dt = ft.DataTable(
         columns=[
-            ft.DataColumn(ft.Text(t("time"), size=12)),
-            ft.DataColumn(ft.Text(t("item"), size=12)),
-            ft.DataColumn(ft.Text(t("qty"), size=12)),
-            ft.DataColumn(ft.Text(t("cost_unit"), size=12)),
-            ft.DataColumn(ft.Text(t("sell_unit"), size=12)),
-            ft.DataColumn(ft.Text(t("net_unit"), size=12)),
-            ft.DataColumn(ft.Text(t("cost_total"), size=12)),
-            ft.DataColumn(ft.Text(t("net_total"), size=12)),
-            ft.DataColumn(ft.Text(t("flip_ratio"), size=12)),
-            ft.DataColumn(ft.Text(t("discount_pct"), size=12)),
-            ft.DataColumn(ft.Text(t("action"), size=12)),
+            ft.DataColumn(col_time),
+            ft.DataColumn(col_item),
+            ft.DataColumn(col_qty),
+            ft.DataColumn(col_cost_unit),
+            ft.DataColumn(col_sell_unit),
+            ft.DataColumn(col_net_unit),
+            ft.DataColumn(col_cost_total),
+            ft.DataColumn(col_net_total),
+            ft.DataColumn(col_flip_ratio),
+            ft.DataColumn(col_discount_pct),
+            ft.DataColumn(col_action),
         ],
         rows=[],
         border_radius=8,
@@ -99,10 +112,24 @@ def create_history_view(settings, snack, t, page):
         dt.rows.insert(0, row)
         page.update()
 
+    def refresh_language(t):
+        col_time.value = t("time")
+        col_item.value = t("item")
+        col_qty.value = t("qty")
+        col_cost_unit.value = t("cost_unit")
+        col_sell_unit.value = t("sell_unit")
+        col_net_unit.value = t("net_unit")
+        col_cost_total.value = t("cost_total")
+        col_net_total.value = t("net_total")
+        col_flip_ratio.value = t("flip_ratio")
+        col_discount_pct.value = t("discount_pct")
+        col_action.value = t("action")
+
     return HistoryView(
         dt=dt,
         row_for_record=row_for_record,
         add_row=add_row,
         remove_row=remove_row,
         delete_record=delete_record,
+        refresh_language=refresh_language,
     )
