@@ -206,6 +206,43 @@ def get_migration_manager() -> MigrationManager:
 
     manager.register(Migration(version=4, name="Add ratio column to history table", up_fn=up_v4))
 
+    # --- v5: Add persistent my-currency columns to history for stats aggregation ---
+    def up_v5(conn):
+        cols = _columns(conn, "history")
+        if 'total_cost_in_my_currency' in cols:
+            return  # Already migrated
+
+        conn.executescript("""
+            ALTER TABLE history ADD COLUMN total_cost_in_my_currency TEXT DEFAULT '0';
+            ALTER TABLE history ADD COLUMN total_net_in_my_currency TEXT DEFAULT '0';
+            ALTER TABLE history ADD COLUMN total_steam_sell_in_my_currency TEXT DEFAULT '0';
+        """)
+
+        # Backfill from calculation_snapshot for existing rows
+        cursor = conn.execute("SELECT id, calculation_snapshot FROM history WHERE calculation_snapshot IS NOT NULL")
+        for row in cursor.fetchall():
+            try:
+                import json
+                from decimal import Decimal
+                data = json.loads(row[1])
+                conn.execute(
+                    """UPDATE history SET
+                        total_cost_in_my_currency=?,
+                        total_net_in_my_currency=?,
+                        total_steam_sell_in_my_currency=?
+                    WHERE id=?""",
+                    (
+                        str(Decimal(str(data.get("total_cost_in_my_currency", 0)))),
+                        str(Decimal(str(data.get("total_net_in_my_currency", 0)))),
+                        str(Decimal(str(data.get("total_steam_sell_in_my_currency", 0)))),
+                        row[0],
+                    )
+                )
+            except Exception:
+                pass
+
+    manager.register(Migration(version=5, name="Add persistent my-currency columns for stats", up_fn=up_v5))
+
     return manager
 
 

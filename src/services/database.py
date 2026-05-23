@@ -55,6 +55,9 @@ def init_db():
             ratio TEXT NOT NULL DEFAULT 0,
             settings_snapshot TEXT,
             calculation_snapshot TEXT,
+            total_cost_in_my_currency TEXT NOT NULL DEFAULT '0',
+            total_net_in_my_currency TEXT NOT NULL DEFAULT '0',
+            total_steam_sell_in_my_currency TEXT NOT NULL DEFAULT '0',
             created_at TEXT NOT NULL DEFAULT (datetime('now'))
         )
         """
@@ -253,7 +256,8 @@ def get_records(limit: int = 500) -> List[HistoryRecord]:
             """
             SELECT id, ts, item_name, COALESCE(note, '') as note,
                    unit_cost, unit_steam_sell, qty, unit_net, total_cost, total_net, total_steam_sell,
-                   discount, ratio, settings_snapshot, calculation_snapshot
+                   discount, ratio, settings_snapshot, calculation_snapshot,
+                   total_cost_in_my_currency, total_net_in_my_currency, total_steam_sell_in_my_currency
             FROM history
             ORDER BY id DESC
             LIMIT ?
@@ -265,7 +269,6 @@ def get_records(limit: int = 500) -> List[HistoryRecord]:
     records = []
     for row in rows:
         settings_data = json.loads(row["settings_snapshot"]) if row["settings_snapshot"] else {}
-        calculation_data = json.loads(row["calculation_snapshot"]) if row["calculation_snapshot"] else {}
 
         def to_decimal(v):
             return Decimal(str(v))
@@ -289,9 +292,9 @@ def get_records(limit: int = 500) -> List[HistoryRecord]:
             "exchange_rate": settings_data.get("exchange_rate", 1.0),
             "my_currency": settings_data.get("my_currency", "CNY"),
             "my_currency_symbol": "",
-            "total_cost_in_my_currency": to_decimal(calculation_data.get("total_cost_in_my_currency", 0)),
-            "total_net_in_my_currency": to_decimal(calculation_data.get("total_net_in_my_currency", 0)),
-            "total_steam_sell_in_my_currency": to_decimal(calculation_data.get("total_steam_sell_in_my_currency", 0)),
+            "total_cost_in_my_currency": to_decimal(row["total_cost_in_my_currency"]),
+            "total_net_in_my_currency": to_decimal(row["total_net_in_my_currency"]),
+            "total_steam_sell_in_my_currency": to_decimal(row["total_steam_sell_in_my_currency"]),
             "discount": to_decimal(row["discount"]),
             "ratio": to_decimal(row["ratio"]) if "ratio" in row.keys() else Decimal('0')
         }
@@ -327,12 +330,16 @@ def add_record(record: HistoryRecord, settings: Settings) -> HistoryRecord:
             """
             INSERT INTO history (ts, item_name, note, unit_cost, unit_steam_sell,
                                 qty, unit_net, total_cost, total_steam_sell, total_net,
-                                discount, ratio, settings_snapshot, calculation_snapshot)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                discount, ratio, settings_snapshot, calculation_snapshot,
+                                total_cost_in_my_currency, total_net_in_my_currency,
+                                total_steam_sell_in_my_currency)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (ts, record.item_name, record.note, str(record.unit_cost), str(record.unit_steam_sell), record.qty,
              str(record.unit_net), str(record.total_cost), str(record.total_steam_sell), str(record.total_net),
-             str(record.discount), str(record.ratio), settings_snapshot, calculation_snapshot),
+             str(record.discount), str(record.ratio), settings_snapshot, calculation_snapshot,
+             str(record.total_cost_in_my_currency), str(record.total_net_in_my_currency),
+             str(record.total_steam_sell_in_my_currency)),
         )
         record.id = cur.lastrowid
 
@@ -360,7 +367,6 @@ def clear_records() -> bool:
 
 def get_stats() -> StatsData:
     from decimal import Decimal
-    import json
     if _stats_cache.is_valid():
         return _stats_cache.get()
 
@@ -369,33 +375,21 @@ def get_stats() -> StatsData:
 
         cur.execute(
             """
-            SELECT COUNT(*) as count
+            SELECT
+                COALESCE(SUM(CAST(total_cost_in_my_currency AS REAL)), 0) as total_cost,
+                COALESCE(SUM(CAST(total_net_in_my_currency AS REAL)), 0) as total_net,
+                COALESCE(SUM(CAST(total_steam_sell_in_my_currency AS REAL)), 0) as total_sell,
+                COALESCE(SUM(qty), 0) as total_qty,
+                COUNT(*) as count
             FROM history
             """
         )
-        rows = cur.fetchall()
+        row = cur.fetchone()
 
-        total_cost_in_my = Decimal('0')
-        total_net_in_my = Decimal('0')
-        total_sell_in_my = Decimal('0')
-        total_qty = 0
-
-        if rows and rows[0]["count"] > 0:
-            cur.execute(
-                """
-                SELECT qty, calculation_snapshot FROM history
-                """
-            )
-            for detail_row in cur.fetchall():
-                total_qty += detail_row["qty"] or 0
-                if detail_row["calculation_snapshot"]:
-                    try:
-                        calc_data = json.loads(detail_row["calculation_snapshot"])
-                        total_cost_in_my += Decimal(str(calc_data.get("total_cost_in_my_currency", 0)))
-                        total_net_in_my += Decimal(str(calc_data.get("total_net_in_my_currency", 0)))
-                        total_sell_in_my += Decimal(str(calc_data.get("total_steam_sell_in_my_currency", 0)))
-                    except:
-                        pass
+        total_cost_in_my = Decimal(str(row["total_cost"]))
+        total_net_in_my = Decimal(str(row["total_net"]))
+        total_sell_in_my = Decimal(str(row["total_sell"]))
+        total_qty = int(row["total_qty"])
 
         if total_net_in_my > 0:
             avg_ratio = (total_cost_in_my / total_net_in_my).quantize(Decimal('0.0001'))
