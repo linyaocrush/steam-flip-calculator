@@ -127,10 +127,10 @@ def create_glass_button(text, icon=None, on_click=None, is_dark=False, is_filled
     return button
 
 
-def create_glass_card(content, is_dark=False, elevation=2):
+def create_glass_card(content, is_dark=False, elevation=2, padding=16, border_radius=16, bgcolor=None):
     """创建毛玻璃卡片"""
     style = get_glassmorphism_style(is_dark)
-    
+
     if elevation == 1:
         shadow = ft.BoxShadow(
             blur_radius=20,
@@ -152,12 +152,12 @@ def create_glass_card(content, is_dark=False, elevation=2):
             color=ft.Colors.with_opacity(0.4, ft.Colors.BLACK),
             offset=ft.Offset(0, 15),
         )
-    
+
     return ft.Container(
         content=content,
-        border_radius=16,
-        padding=16,
-        bgcolor=style["bgcolor"],
+        border_radius=border_radius,
+        padding=padding,
+        bgcolor=bgcolor or style["bgcolor"],
         border=style["border"],
         shadow=shadow,
     )

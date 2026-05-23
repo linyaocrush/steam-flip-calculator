@@ -3,6 +3,7 @@ from typing import NamedTuple, Callable
 from utils import safe_float
 from config import CURRENCY_CODES, CURRENCY_SYMBOLS
 from utils.i18n import LANGUAGE_CODES, LANGUAGE_LABELS
+from ui.glassmorphism import create_glass_card
 
 
 class SettingsView(NamedTuple):
@@ -225,18 +226,8 @@ def create_settings_view(settings, snack, t, page):
         ),
     )
 
-    settings_view = ft.Container(
-        padding=20,
-        border_radius=18,
-        bgcolor=ft.Colors.with_opacity(0.1, ft.Colors.SURFACE),
-        border=ft.BorderSide(1, ft.Colors.with_opacity(0.2, ft.Colors.WHITE)),
-        shadow=ft.BoxShadow(
-            blur_radius=30,
-            spread_radius=0,
-            color=ft.Colors.with_opacity(0.3, ft.Colors.BLACK),
-            offset=ft.Offset(0, 10),
-        ),
-        content=ft.Column(
+    settings_view = create_glass_card(
+        ft.Column(
             spacing=16,
             controls=[
                 ft.Row(
@@ -288,6 +279,8 @@ def create_settings_view(settings, snack, t, page):
                     ),
             ],
         ),
+        padding=20, border_radius=18, elevation=2,
+        bgcolor=ft.Colors.with_opacity(0.1, ft.Colors.SURFACE),
     )
 
     def refresh_language(t_new):

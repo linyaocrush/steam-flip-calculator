@@ -4,6 +4,7 @@ from typing import NamedTuple, Callable
 from utils import money_decimal, pct_decimal, pct_raw, safe_float, safe_decimal, safe_int, Debouncer
 from services.calculator import calculate_local, calculate_reverse_quantity
 from services.database import save_settings
+from ui.glassmorphism import create_glass_card
 from state.app_state import app_state
 
 
@@ -324,18 +325,8 @@ def create_calculator_view(settings, on_add_to_history, t, page):
         ),
     )
 
-    calc_card = ft.Container(
-        padding=20,
-        border_radius=18,
-        bgcolor=ft.Colors.with_opacity(0.1, ft.Colors.SURFACE),
-        border=ft.BorderSide(1, ft.Colors.with_opacity(0.2, ft.Colors.WHITE)),
-        shadow=ft.BoxShadow(
-            blur_radius=30,
-            spread_radius=0,
-            color=ft.Colors.with_opacity(0.3, ft.Colors.BLACK),
-            offset=ft.Offset(0, 10),
-        ),
-        content=ft.Column(
+    calc_card = create_glass_card(
+        ft.Column(
             spacing=14,
             controls=[
                 ft.Row(
@@ -468,6 +459,8 @@ def create_calculator_view(settings, on_add_to_history, t, page):
                 ),
             ],
         ),
+        padding=20, border_radius=18, elevation=2,
+        bgcolor=ft.Colors.with_opacity(0.1, ft.Colors.SURFACE),
     )
 
     def refresh_language(t):
