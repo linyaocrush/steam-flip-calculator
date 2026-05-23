@@ -1,3 +1,4 @@
+import threading
 import flet as ft
 from utils import safe_float
 from config import CURRENCY_SYMBOLS
@@ -36,16 +37,18 @@ def setup_settings_controller(settings_ui, page, snack, t):
         snack.open = True
         page.update()
 
-        rate, updated_at, message = fetch_exchange_rate(buy_code, sell_code, force_refresh=True)
+        def _fetch_task():
+            rate, updated_at, message = fetch_exchange_rate(buy_code, sell_code, force_refresh=True)
+            if rate is not None:
+                tf_exchange_rate.value = str(rate)
+                snack.content = ft.Text(t("rate_success", base=buy_code, target=sell_code, rate=rate))
+                mark_unsaved()
+            else:
+                snack.content = ft.Text(t("rate_failed"))
+            snack.open = True
+            page.update()
 
-        if rate is not None:
-            tf_exchange_rate.value = str(rate)
-            snack.content = ft.Text(t("rate_success", base=buy_code, target=sell_code, rate=rate))
-            mark_unsaved()
-        else:
-            snack.content = ft.Text(t("rate_failed"))
-        snack.open = True
-        page.update()
+        threading.Thread(target=_fetch_task, daemon=True).start()
 
     btn_fetch_rate.on_click = fetch_rate_handler
 
