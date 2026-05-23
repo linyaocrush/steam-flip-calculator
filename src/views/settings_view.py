@@ -1,8 +1,25 @@
 import flet as ft
+from typing import NamedTuple, Callable
 from utils import safe_float
 from config import CURRENCY_CODES, CURRENCY_SYMBOLS
 from utils.i18n import LANGUAGE_CODES, LANGUAGE_LABELS
 from ui.glassmorphism import get_glassmorphism_style
+
+
+class SettingsView(NamedTuple):
+    view: ft.Container
+    tf_buy_currency: ft.TextField
+    tf_sell_currency: ft.TextField
+    tf_exchange_rate: ft.TextField
+    tf_fee_rate: ft.TextField
+    dd_my_currency: ft.Dropdown
+    dd_language: ft.Dropdown
+    btn_fetch_rate: ft.Control
+    update_save_status: Callable
+    update_exchange_label: Callable
+    mark_unsaved: Callable
+    check_unsaved: Callable
+    save_button: ft.Control
 
 
 def create_settings_view(settings, snack, t, page):
@@ -261,18 +278,18 @@ def create_settings_view(settings, snack, t, page):
         ),
     )
 
-    return {
-        "view": settings_view,
-        "tf_buy_currency": tf_buy_currency,
-        "tf_sell_currency": tf_sell_currency,
-        "tf_exchange_rate": tf_exchange_rate,
-        "tf_fee_rate": tf_fee_rate,
-        "dd_my_currency": dd_my_currency,
-        "dd_language": dd_language,
-        "btn_fetch_rate": btn_fetch_rate,
-        "update_save_status": update_save_status,
-        "update_exchange_label": update_exchange_label,
-        "mark_unsaved": mark_unsaved,
-        "check_unsaved": check_unsaved,
-        "save_button": settings_view.content.controls[4].controls[1],
-    }
+    return SettingsView(
+        view=settings_view,
+        tf_buy_currency=tf_buy_currency,
+        tf_sell_currency=tf_sell_currency,
+        tf_exchange_rate=tf_exchange_rate,
+        tf_fee_rate=tf_fee_rate,
+        dd_my_currency=dd_my_currency,
+        dd_language=dd_language,
+        btn_fetch_rate=btn_fetch_rate,
+        update_save_status=update_save_status,
+        update_exchange_label=update_exchange_label,
+        mark_unsaved=mark_unsaved,
+        check_unsaved=check_unsaved,
+        save_button=settings_view.content.controls[4].controls[1],
+    )

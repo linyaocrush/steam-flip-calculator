@@ -95,14 +95,14 @@ def main(page: ft.Page):
         refresh_stats()
 
     calculator = create_calculator_view(settings, on_add_to_history, t, page)
-    calc_card = calculator["view"]
-    recalc = calculator["recalc"]
-    tf_cost = calculator["tf_cost"]
-    tf_steam_sell = calculator["tf_steam_sell"]
+    calc_card = calculator.view
+    recalc = calculator.recalc
+    tf_cost = calculator.tf_cost
+    tf_steam_sell = calculator.tf_steam_sell
 
     stats = create_stats_view(settings, t)
-    stats_view = stats["view"]
-    update_stats = stats["update_stats"]
+    stats_view = stats.view
+    update_stats = stats.update_stats
 
     def refresh_stats():
         stats_data = get_stats()
@@ -110,9 +110,9 @@ def main(page: ft.Page):
         page.update()
 
     history = create_history_view(settings, snack, t, page)
-    dt = history["dt"]
-    row_for_record = history["row_for_record"]
-    add_row = history["add_row"]
+    dt = history.dt
+    row_for_record = history.row_for_record
+    add_row = history.add_row
 
     def refresh_history():
         records = get_records()
@@ -137,7 +137,7 @@ def main(page: ft.Page):
         refresh_stats()
 
     settings_ui = create_settings_view(settings, snack, t, page)
-    settings_view = settings_ui["view"]
+    settings_view = settings_ui.view
 
     # --- Navigation ---
     tab_buttons, switch_view, register_view = create_navigation(t, page)

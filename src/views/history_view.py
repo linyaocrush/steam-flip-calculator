@@ -1,7 +1,16 @@
 import flet as ft
 from decimal import Decimal
+from typing import NamedTuple, Callable
 from utils import money_decimal, pct_decimal, pct_raw
 from config import CURRENCY_SYMBOLS
+
+
+class HistoryView(NamedTuple):
+    dt: ft.DataTable
+    row_for_record: Callable
+    add_row: Callable
+    remove_row: Callable
+    delete_record: Callable
 
 
 def create_history_view(settings, snack, t, page):
@@ -90,10 +99,10 @@ def create_history_view(settings, snack, t, page):
         dt.rows.insert(0, row)
         page.update()
 
-    return {
-        "dt": dt,
-        "row_for_record": row_for_record,
-        "add_row": add_row,
-        "remove_row": remove_row,
-        "delete_record": delete_record,
-    }
+    return HistoryView(
+        dt=dt,
+        row_for_record=row_for_record,
+        add_row=add_row,
+        remove_row=remove_row,
+        delete_record=delete_record,
+    )

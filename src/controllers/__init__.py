@@ -8,18 +8,18 @@ from state.app_state import app_state
 
 def setup_settings_controller(settings_ui, page, snack, t, rebuild_ui):
     """Wire up the fetch-rate and save buttons in the settings view."""
-    tf_buy_currency = settings_ui["tf_buy_currency"]
-    tf_sell_currency = settings_ui["tf_sell_currency"]
-    tf_exchange_rate = settings_ui["tf_exchange_rate"]
-    tf_fee_rate = settings_ui["tf_fee_rate"]
-    dd_my_currency = settings_ui["dd_my_currency"]
-    dd_language = settings_ui["dd_language"]
-    btn_fetch_rate = settings_ui["btn_fetch_rate"]
-    update_save_status = settings_ui["update_save_status"]
-    update_exchange_label = settings_ui["update_exchange_label"]
-    mark_unsaved = settings_ui["mark_unsaved"]
-    check_unsaved = settings_ui["check_unsaved"]
-    save_button = settings_ui["save_button"]
+    tf_buy_currency = settings_ui.tf_buy_currency
+    tf_sell_currency = settings_ui.tf_sell_currency
+    tf_exchange_rate = settings_ui.tf_exchange_rate
+    tf_fee_rate = settings_ui.tf_fee_rate
+    dd_my_currency = settings_ui.dd_my_currency
+    dd_language = settings_ui.dd_language
+    btn_fetch_rate = settings_ui.btn_fetch_rate
+    update_save_status = settings_ui.update_save_status
+    update_exchange_label = settings_ui.update_exchange_label
+    mark_unsaved = settings_ui.mark_unsaved
+    check_unsaved = settings_ui.check_unsaved
+    save_button = settings_ui.save_button
 
     check_unsaved()
 

@@ -1,7 +1,13 @@
 import flet as ft
+from typing import NamedTuple, Callable
 from utils import money_decimal, pct_decimal, pct_raw
 from ui.glassmorphism import get_glassmorphism_style
 from state.app_state import app_state
+
+
+class StatsView(NamedTuple):
+    view: ft.Container
+    update_stats: Callable
 
 
 def create_stats_view(settings, t):
@@ -79,7 +85,7 @@ def create_stats_view(settings, t):
             st_ratio.value = "-"
             st_discount.value = "-"
 
-    return {
-        "view": stats_view,
-        "update_stats": update_stats,
-    }
+    return StatsView(
+        view=stats_view,
+        update_stats=update_stats,
+    )
