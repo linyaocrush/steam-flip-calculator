@@ -3,7 +3,6 @@ from typing import NamedTuple, Callable
 from utils import safe_float
 from config import CURRENCY_CODES, CURRENCY_SYMBOLS
 from utils.i18n import LANGUAGE_CODES, LANGUAGE_LABELS
-from ui.glassmorphism import get_glassmorphism_style
 
 
 class SettingsView(NamedTuple):

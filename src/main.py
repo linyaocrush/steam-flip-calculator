@@ -114,11 +114,6 @@ def main(page: ft.Page):
     row_for_record = history.row_for_record
     add_row = history.add_row
 
-    def refresh_history():
-        records = get_records()
-        dt.rows = [row_for_record(r, refresh_stats) for r in records]
-        page.update()
-
     def refresh_history_and_stats():
         records = get_records()
         stats_data = get_stats()

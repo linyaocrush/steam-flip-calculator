@@ -369,9 +369,7 @@ def get_stats() -> StatsData:
 
         cur.execute(
             """
-            SELECT
-                COUNT(*) as count,
-                calculation_snapshot
+            SELECT COUNT(*) as count
             FROM history
             """
         )

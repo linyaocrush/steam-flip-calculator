@@ -1,7 +1,6 @@
 import flet as ft
 from typing import NamedTuple, Callable
 from utils import money_decimal, pct_decimal, pct_raw
-from ui.glassmorphism import get_glassmorphism_style
 from state.app_state import app_state
 
 

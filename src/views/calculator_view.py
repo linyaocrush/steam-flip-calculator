@@ -1,9 +1,9 @@
 import flet as ft
 from decimal import Decimal, ROUND_HALF_UP
 from typing import NamedTuple, Callable
-from utils import money_decimal, pct_decimal, safe_float, safe_decimal, safe_int, Debouncer
+from utils import money_decimal, pct_decimal, pct_raw, safe_float, safe_decimal, safe_int, Debouncer
 from services.calculator import calculate_local
-from ui.glassmorphism import create_glass_card, get_glassmorphism_style
+from services.database import save_settings
 from state.app_state import app_state
 
 
@@ -140,11 +140,8 @@ def create_calculator_view(settings, on_add_to_history, t, page):
     out_required_qty = ft.Text(value="-")
     out_required_cost = ft.Text(value="-")
 
-    # Cache for last calculation result to avoid redundant calculate_local() in on_add
     _last_calc_result = None
     _last_calc_inputs = None
-
-    # Translatable label controls
     txt_result_title = ft.Text(t("result_title"), size=16, weight=ft.FontWeight.W_600)
     txt_target_title = ft.Text(t("target_title"), size=16, weight=ft.FontWeight.W_600)
     txt_reverse_title = ft.Text(t("reverse_title"), size=16, weight=ft.FontWeight.W_600)
@@ -215,13 +212,14 @@ def create_calculator_view(settings, on_add_to_history, t, page):
             current_settings.steam_fee_rate,
         )
         _last_calc_result = data
-        _last_calc_inputs = (safe_decimal(tf_cost.value), safe_decimal(tf_steam_sell.value), safe_int(tf_qty.value))
+        _last_calc_inputs = (safe_decimal(tf_cost.value), safe_decimal(tf_steam_sell.value), safe_int(tf_qty.value),
+                              current_settings.exchange_rate, current_settings.steam_fee_rate)
 
         out_unit_net.value = format_price(data.unit_net, current_settings.sell_currency_symbol, current_settings.sell_currency)
         out_total_cost.value = format_cost(data.total_cost)
         out_total_net.value = format_price(data.total_net, current_settings.sell_currency_symbol, current_settings.sell_currency)
         out_ratio.value = f"{pct_decimal(data.ratio)} ({t('ratio_desc')})"
-        out_discount.value = f"{data.discount:,.2f}%"
+        out_discount.value = pct_raw(data.discount)
         out_need_sell.value = f"{format_price(data.need_sell, current_settings.sell_currency_symbol, current_settings.sell_currency)} ({t('unit')})"
 
         calc_target_qty()
@@ -266,8 +264,8 @@ def create_calculator_view(settings, on_add_to_history, t, page):
         if unit_cost <= 0 or unit_steam_sell <= 0:
             return
 
-        current_inputs = (unit_cost, unit_steam_sell, qty)
-        if _last_calc_inputs == current_inputs and _last_calc_result is not None:
+        current_inputs = (unit_cost, unit_steam_sell, qty, current_settings.exchange_rate, current_settings.steam_fee_rate)
+        if _last_calc_inputs is not None and _last_calc_inputs == current_inputs:
             data = _last_calc_result
         else:
             use_exchange = current_settings.buy_currency != current_settings.sell_currency
@@ -306,7 +304,6 @@ def create_calculator_view(settings, on_add_to_history, t, page):
         current_settings.last_item_name = item_name
         current_settings.last_unit_cost = safe_float(tf_cost.value)
         current_settings.last_unit_sell = safe_float(tf_steam_sell.value)
-        from services.database import save_settings
         save_settings(current_settings)
 
         on_add_to_history(tf_item, tf_note, tf_cost, tf_steam_sell, tf_qty, record_data)
@@ -509,7 +506,6 @@ def create_calculator_view(settings, on_add_to_history, t, page):
         txt_break_even_label.value = t("break_even_price")
 
         btn_add_to_history.text = t("add_to_history")
-        recalc()
 
     return CalculatorView(
         view=calc_card,
