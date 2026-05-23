@@ -18,14 +18,65 @@ class SettingsView(NamedTuple):
     update_save_status: Callable
     update_exchange_label: Callable
     mark_unsaved: Callable
-    check_unsaved: Callable
     save_button: ft.Control
     refresh_language: Callable
 
 
 def create_settings_view(settings, snack, t, page):
     is_dark = True
-    
+
+    _unsaved_changes = False
+
+    original_settings = {
+        "buy_currency": settings.buy_currency,
+        "sell_currency": settings.sell_currency,
+        "exchange_rate": settings.exchange_rate,
+        "steam_fee_rate": settings.steam_fee_rate,
+        "my_currency": settings.my_currency,
+        "language": settings.language,
+    }
+
+    def check_changes():
+        current_exchange_rate = safe_float(tf_exchange_rate.value)
+        current_fee_rate = safe_float(tf_fee_rate.value) / 100.0
+
+        return (
+            tf_buy_currency.value != original_settings["buy_currency"] or
+            tf_sell_currency.value != original_settings["sell_currency"] or
+            current_exchange_rate != original_settings["exchange_rate"] or
+            current_fee_rate != original_settings["steam_fee_rate"] or
+            dd_my_currency.value != original_settings["my_currency"] or
+            dd_language.value != original_settings["language"]
+        )
+
+    def update_save_status(saved):
+        if saved:
+            save_status_text.value = t("saved")
+            save_status_text.color = ft.Colors.GREEN
+        else:
+            save_status_text.value = t("unsaved")
+            save_status_text.color = ft.Colors.RED
+        page.update()
+
+    def mark_unsaved():
+        nonlocal _unsaved_changes
+        if check_changes():
+            _unsaved_changes = True
+            update_save_status(False)
+        else:
+            _unsaved_changes = False
+            update_save_status(True)
+
+    def _on_change(_):
+        mark_unsaved()
+
+    def update_exchange_label():
+        tf_exchange_rate.label = t("exchange_rate", from_curr=tf_buy_currency.value, to_curr=tf_sell_currency.value)
+
+    def _on_currency_change(_):
+        mark_unsaved()
+        update_exchange_label()
+
     tf_buy_currency = ft.Dropdown(
         label=t("buy_currency"),
         options=[ft.dropdown.Option(code, f"{code} - {CURRENCY_SYMBOLS[code]}") for code in CURRENCY_CODES],
@@ -115,75 +166,13 @@ def create_settings_view(settings, snack, t, page):
     )
     
     save_status_text = ft.Text(t("saved"), color=ft.Colors.GREEN, size=12)
-    
-    _unsaved_changes = False
-    
-    original_settings = {
-        "buy_currency": settings.buy_currency,
-        "sell_currency": settings.sell_currency,
-        "exchange_rate": settings.exchange_rate,
-        "steam_fee_rate": settings.steam_fee_rate,
-        "my_currency": settings.my_currency,
-        "language": settings.language,
-    }
 
-    def check_changes():
-        current_exchange_rate = safe_float(tf_exchange_rate.value)
-        current_fee_rate = safe_float(tf_fee_rate.value) / 100.0
-        
-        has_changes = (
-            tf_buy_currency.value != original_settings["buy_currency"] or
-            tf_sell_currency.value != original_settings["sell_currency"] or
-            current_exchange_rate != original_settings["exchange_rate"] or
-            current_fee_rate != original_settings["steam_fee_rate"] or
-            dd_my_currency.value != original_settings["my_currency"] or
-            dd_language.value != original_settings["language"]
-        )
-        
-        return has_changes
-
-    def mark_unsaved():
-        nonlocal _unsaved_changes
-        if check_changes():
-            _unsaved_changes = True
-            update_save_status(False)
-        else:
-            _unsaved_changes = False
-            update_save_status(True)
-
-    def update_save_status(saved):
-        if saved:
-            save_status_text.value = t("saved")
-            save_status_text.color = ft.Colors.GREEN
-        else:
-            save_status_text.value = t("unsaved")
-            save_status_text.color = ft.Colors.RED
-        page.update()
-
-    def check_unsaved():
-        def on_change(_):
-            mark_unsaved()
-        
-        tf_buy_currency.on_change = on_change
-        tf_sell_currency.on_change = on_change
-        tf_exchange_rate.on_change = on_change
-        tf_fee_rate.on_change = on_change
-        dd_my_currency.on_change = on_change
-        dd_language.on_change = on_change
-
-    def update_exchange_label():
-        tf_exchange_rate.label = t("exchange_rate", from_curr=tf_buy_currency.value, to_curr=tf_sell_currency.value)
-
-    def on_buy_currency_change(_):
-        mark_unsaved()
-        update_exchange_label()
-
-    def on_sell_currency_change(_):
-        mark_unsaved()
-        update_exchange_label()
-
-    tf_buy_currency.on_change = on_buy_currency_change
-    tf_sell_currency.on_change = on_sell_currency_change
+    tf_buy_currency.on_select = _on_currency_change
+    tf_sell_currency.on_select = _on_currency_change
+    tf_exchange_rate.on_change = _on_change
+    tf_fee_rate.on_change = _on_change
+    dd_my_currency.on_select = _on_change
+    dd_language.on_select = _on_change
 
     def reset_settings(_):
         tf_buy_currency.value = "CNY"
@@ -310,7 +299,6 @@ def create_settings_view(settings, snack, t, page):
         update_save_status=update_save_status,
         update_exchange_label=update_exchange_label,
         mark_unsaved=mark_unsaved,
-        check_unsaved=check_unsaved,
         save_button=btn_save,
         refresh_language=refresh_language,
     )

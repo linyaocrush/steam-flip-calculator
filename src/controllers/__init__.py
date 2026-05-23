@@ -18,10 +18,7 @@ def setup_settings_controller(settings_ui, page, snack, t):
     update_save_status = settings_ui.update_save_status
     update_exchange_label = settings_ui.update_exchange_label
     mark_unsaved = settings_ui.mark_unsaved
-    check_unsaved = settings_ui.check_unsaved
     save_button = settings_ui.save_button
-
-    check_unsaved()
 
     def fetch_rate_handler(_):
         buy_code = tf_buy_currency.value or "CNY"
