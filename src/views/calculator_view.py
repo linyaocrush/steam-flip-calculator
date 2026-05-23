@@ -140,6 +140,10 @@ def create_calculator_view(settings, on_add_to_history, t, page):
     out_required_qty = ft.Text(value="-")
     out_required_cost = ft.Text(value="-")
 
+    # Cache for last calculation result to avoid redundant calculate_local() in on_add
+    _last_calc_result = None
+    _last_calc_inputs = None
+
     # Translatable label controls
     txt_result_title = ft.Text(t("result_title"), size=16, weight=ft.FontWeight.W_600)
     txt_target_title = ft.Text(t("target_title"), size=16, weight=ft.FontWeight.W_600)
@@ -194,6 +198,7 @@ def create_calculator_view(settings, on_add_to_history, t, page):
         return format_price(amount_in_sell_currency, current_settings.buy_currency_symbol, current_settings.buy_currency)
 
     def recalc(_=None):
+        nonlocal _last_calc_result, _last_calc_inputs
         current_settings = app_state.get_settings()
         unit_cost = safe_float(tf_cost.value)
         unit_sell = safe_float(tf_steam_sell.value)
@@ -209,6 +214,8 @@ def create_calculator_view(settings, on_add_to_history, t, page):
             current_settings.exchange_rate,
             current_settings.steam_fee_rate,
         )
+        _last_calc_result = data
+        _last_calc_inputs = (safe_decimal(tf_cost.value), safe_decimal(tf_steam_sell.value), safe_int(tf_qty.value))
 
         out_unit_net.value = format_price(data.unit_net, current_settings.sell_currency_symbol, current_settings.sell_currency)
         out_total_cost.value = format_cost(data.total_cost)
@@ -259,16 +266,19 @@ def create_calculator_view(settings, on_add_to_history, t, page):
         if unit_cost <= 0 or unit_steam_sell <= 0:
             return
 
-        use_exchange = current_settings.buy_currency != current_settings.sell_currency
-
-        data = calculate_local(
-            unit_cost,
-            unit_steam_sell,
-            qty,
-            use_exchange,
-            current_settings.exchange_rate,
-            current_settings.steam_fee_rate,
-        )
+        current_inputs = (unit_cost, unit_steam_sell, qty)
+        if _last_calc_inputs == current_inputs and _last_calc_result is not None:
+            data = _last_calc_result
+        else:
+            use_exchange = current_settings.buy_currency != current_settings.sell_currency
+            data = calculate_local(
+                unit_cost,
+                unit_steam_sell,
+                qty,
+                use_exchange,
+                current_settings.exchange_rate,
+                current_settings.steam_fee_rate,
+            )
 
         cost_in_my, net_in_my, sell_in_my = _get_my_currency_amounts(
             data.total_cost_buy, data.total_net, data.total_cost + data.total_net,
