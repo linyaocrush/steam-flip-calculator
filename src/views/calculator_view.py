@@ -15,30 +15,33 @@ class CalculatorView(NamedTuple):
     refresh_language: Callable
 
 
+def _convert_currency(amount: Decimal, from_currency: str, to_currency: str,
+                      buy_currency: str, sell_currency: str, exchange_rate: float) -> Decimal:
+    """Convert amount between buy/sell currencies using the buy→sell exchange rate."""
+    if from_currency == to_currency or buy_currency == sell_currency:
+        return amount
+
+    rate = Decimal(str(exchange_rate))
+
+    if from_currency == sell_currency and to_currency == buy_currency:
+        return (amount / rate).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    if from_currency == buy_currency and to_currency == sell_currency:
+        return (amount * rate).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+    return amount
+
+
 def _get_my_currency_amounts(total_cost_buy: Decimal, total_net: Decimal, total_steam_sell: Decimal,
                               buy_currency: str, sell_currency: str, my_currency: str,
                               exchange_rate: float):
-    """Convert amounts to 'my currency'. Returns (cost_in_my, net_in_my, sell_in_my).
-
-    Pure math — no I/O. For cases where my_currency differs from both buy and sell,
-    returns unconverted sell-currency values (caller should pre-convert if needed).
-    """
-    if not my_currency or buy_currency == sell_currency:
-        return total_cost_buy, total_net, total_steam_sell
-
-    if my_currency == buy_currency:
-        rate = Decimal(str(exchange_rate))
-        net_in_my = (total_net / rate).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-        sell_in_my = (total_steam_sell / rate).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-        return total_cost_buy, net_in_my, sell_in_my
-
-    if my_currency == sell_currency:
-        rate = Decimal(str(exchange_rate))
-        cost_in_my = (total_cost_buy * rate).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-        return cost_in_my, total_net, total_steam_sell
-
-    # my_currency differs from both — can't convert without extra rates
-    return total_cost_buy, total_net, total_steam_sell
+    """Convert amounts to 'my currency'. Returns (cost_in_my, net_in_my, sell_in_my)."""
+    cost_in_my = _convert_currency(total_cost_buy, buy_currency, my_currency,
+                                    buy_currency, sell_currency, exchange_rate)
+    net_in_my = _convert_currency(total_net, sell_currency, my_currency,
+                                   buy_currency, sell_currency, exchange_rate)
+    sell_in_my = _convert_currency(total_steam_sell, sell_currency, my_currency,
+                                    buy_currency, sell_currency, exchange_rate)
+    return cost_in_my, net_in_my, sell_in_my
 
 
 def create_calculator_view(settings, on_add_to_history, t, page):
@@ -166,30 +169,19 @@ def create_calculator_view(settings, on_add_to_history, t, page):
         if currency_code == my_currency:
             return f"{currency_symbol} {money_decimal(amount)}"
 
-        exchange_rate = Decimal(str(current_settings.exchange_rate))
-        if current_settings.buy_currency == my_currency:
-            converted = amount / exchange_rate
-        else:
-            converted = amount * exchange_rate
-
+        converted = _convert_currency(amount, currency_code, my_currency,
+                                       current_settings.buy_currency, current_settings.sell_currency,
+                                       current_settings.exchange_rate)
         return f"{currency_symbol} {money_decimal(amount)} ({my_symbol} {money_decimal(converted)})"
 
     def format_cost(amount_in_sell_currency: Decimal):
-        """
-        成本类金额（总花费/需要花费）优先按"我的货币"显示：
-        - 若 buy_currency == my_currency：直接显示 my_currency（不再显示 sell_currency + 括号）
-        - 否则：沿用原来的 format_price 逻辑（卖出币种为主，括号里我的币种）
-        """
         current_settings = app_state.get_settings()
         my_currency = current_settings.my_currency
-        my_symbol = current_settings.my_currency_symbol
 
         if current_settings.buy_currency == my_currency:
-            if current_settings.buy_currency != current_settings.sell_currency:
-                exchange_rate = Decimal(str(current_settings.exchange_rate))
-                amount_in_my = amount_in_sell_currency / exchange_rate
-            else:
-                amount_in_my = amount_in_sell_currency
+            amount_in_my = _convert_currency(amount_in_sell_currency, current_settings.sell_currency, my_currency,
+                                              current_settings.buy_currency, current_settings.sell_currency,
+                                              current_settings.exchange_rate)
             return f"{current_settings.buy_currency_symbol} {money_decimal(amount_in_my)}"
 
         return format_price(amount_in_sell_currency, current_settings.buy_currency_symbol, current_settings.buy_currency)
