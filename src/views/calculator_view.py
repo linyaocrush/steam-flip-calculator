@@ -54,7 +54,7 @@ def create_calculator_view(settings, on_add_to_history, t, page):
         recalc()
         page.update()
 
-    def _debounced_calc_target():
+    def _on_target_amount_change(e):
         calc_target_qty()
         page.update()
 
@@ -303,7 +303,7 @@ def create_calculator_view(settings, on_add_to_history, t, page):
     tf_cost.on_change = lambda _: _recalc_debouncer(_debounced_recalc)
     tf_steam_sell.on_change = lambda _: _recalc_debouncer(_debounced_recalc)
     tf_qty.on_change = lambda _: _recalc_debouncer(_debounced_recalc)
-    tf_target_amount.on_change = lambda _: _recalc_debouncer(_debounced_calc_target)
+    tf_target_amount.on_change = _on_target_amount_change
 
     def on_settings_changed(new_settings):
         tf_cost.prefix = ft.Text(new_settings.buy_currency_symbol)
